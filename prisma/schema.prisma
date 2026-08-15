@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+// PostgreSQL on Neon. DATABASE_URL = pooled; DIRECT_URL = non-pooled (used by
+// prisma db push / migrations).
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Anyone who logs in.
+//   ADMIN   -> you. Manages courses, availability, and sees every booking.
+//   STUDENT -> registers themselves, books slots.
+// Role is stored as a string and validated by zod at the app layer.
+// SECURITY: role is NEVER accepted from a form. Self-registration always
+// forces STUDENT; only the seed script creates an ADMIN.
+// ---------------------------------------------------------------------------
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  role         String  @default("STUDENT")
+  isActive     Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings  Booking[]
+  auditLogs AuditLog[]
+}
+
+// ---------------------------------------------------------------------------
+// A course you offer. Students only ever see isPublished = true.
+// ---------------------------------------------------------------------------
+model Course {
+  id              String  @id @default(cuid())
+  title           String
+  summary         String  @default("")
+  description     String  @default("")
+  durationMinutes Int     @default(60)
+  isPublished     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  slots    AvailabilitySlot[]
+  bookings Booking[]
+
+  @@index([isPublished])
+}
+
+// ---------------------------------------------------------------------------
+// A window of time you are available to teach.
+//
+// courseId == null  -> open to ANY published course
+// courseId != null  -> reserved for that one course
+//
+// capacity is how many students may book this slot (1 = one-to-one).
+// Because there is a single instructor, a slot booked for one course is
+// consumed for every other course too — that is intentional.
+// ---------------------------------------------------------------------------
+model AvailabilitySlot {
+  id       String   @id @default(cuid())
+  startsAt DateTime
+  endsAt   DateTime
+  capacity Int      @default(1)
+  note     String   @default("")
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@index([startsAt])
+  @@index([courseId])
+}
+
+// ---------------------------------------------------------------------------
+// A student holding a seat in a slot for a course.
+//
+// @@unique([slotId, userId]) stops the same student booking one slot twice.
+// Capacity across different students is enforced inside a Serializable
+// transaction in lib/actions/booking-actions.ts — a count check alone would
+// race under concurrent requests.
+// ---------------------------------------------------------------------------
+model Booking {
+  id        String @id @default(cuid())
+  reference String @unique
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  slotId   String
+  slot     AvailabilitySlot @relation(fields: [slotId], references: [id], onDelete: Cascade)
+
+  // CONFIRMED | CANCELLED
+  status      String    @default("CONFIRMED")
+  notes       String    @default("")
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  @@unique([slotId, userId])
+  @@index([slotId, status])
+  @@index([userId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Sequential human-facing reference numbers (BK-000001).
+// ---------------------------------------------------------------------------
+model Counter {
+  name  String @id
+  value Int    @default(0)
+}
+
+// ---------------------------------------------------------------------------
+// Every mutation is recorded here.
+// ---------------------------------------------------------------------------
+model AuditLog {
+  id          String  @id @default(cuid())
+  actorUserId String?
+  actor       User?   @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  action     String
+  entityType String
+  entityId   String?
+  entityName String?
+  details    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+}
