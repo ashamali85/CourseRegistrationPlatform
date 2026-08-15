@@ -3,10 +3,12 @@
 import { useActionState } from 'react';
 import Link from 'next/link';
 import { loginAction, type ActionState } from '@/lib/actions/auth-actions';
+import { useI18n } from '@/components/I18nProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
 export default function LoginForm() {
+  const { d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(loginAction, {});
 
   return (
@@ -14,13 +16,13 @@ export default function LoginForm() {
       {state.error && <FormAlert error={state.error} />}
 
       <div className="field">
-        <label htmlFor="email">Email</label>
+        <label htmlFor="email">{d.auth.email}</label>
         <input id="email" name="email" type="email" autoComplete="email" required />
         {state.fieldErrors?.email && <p className="field-error">{state.fieldErrors.email}</p>}
       </div>
 
       <div className="field">
-        <label htmlFor="password">Password</label>
+        <label htmlFor="password">{d.auth.password}</label>
         <input
           id="password"
           name="password"
@@ -33,12 +35,12 @@ export default function LoginForm() {
         )}
       </div>
 
-      <SubmitButton className="btn btn-primary btn-block" pendingLabel="Signing in…">
-        Sign in
+      <SubmitButton className="btn btn-primary btn-block" pendingLabel={d.auth.signingIn}>
+        {d.auth.signIn}
       </SubmitButton>
 
       <p className="center small muted">
-        No account yet? <Link href="/register">Create one</Link>
+        {d.auth.noAccount} <Link href="/register">{d.auth.createOne}</Link>
       </p>
     </form>
   );

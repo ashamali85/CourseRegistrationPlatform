@@ -22,6 +22,11 @@
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Arabic gets a face designed for it rather than Inter's Arabic fallback. */
+body.is-rtl {
+  --font-sans: 'Noto Kufi Arabic', 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
 * { box-sizing: border-box; }
 
 html, body {
@@ -37,6 +42,9 @@ a { color: var(--brand); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 h1, h2, h3 { font-weight: 800; line-height: 1.15; margin: 0; letter-spacing: -0.02em; }
+/* Negative tracking pulls Arabic letterforms into each other — reset it. */
+body.is-rtl h1, body.is-rtl h2, body.is-rtl h3 { letter-spacing: 0; }
+body.is-rtl { line-height: 1.7; }
 h1 { font-size: 1.7rem; }
 h2 { font-size: 1.3rem; }
 h3 { font-size: 1.05rem; }
@@ -57,6 +65,7 @@ h3 { font-size: 1.05rem; }
 .small { font-size: 0.85rem; }
 .center { text-align: center; }
 .mt-2 { margin-top: 8px; } .mt-4 { margin-top: 16px; } .mt-6 { margin-top: 24px; }
+.center { text-align: center; }
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
@@ -118,7 +127,7 @@ h3 { font-size: 1.05rem; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ------------------------------------------------------------------- forms */
-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; text-align: start; }
 input, select, textarea {
   width: 100%; font-family: inherit; font-size: 0.95rem;
   padding: 10px 12px; border: 1px solid var(--line);
@@ -127,7 +136,7 @@ input, select, textarea {
 textarea { min-height: 90px; resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 3px var(--brand-tint); }
 .field { margin-bottom: 14px; }
-.field-error { color: var(--danger); font-size: 0.8rem; margin-top: 5px; font-weight: 600; }
+.field-error { color: var(--danger); font-size: 0.8rem; margin-top: 5px; font-weight: 600; text-align: start; }
 .checkbox-row { display: flex; align-items: center; gap: 9px; }
 .checkbox-row input { width: auto; }
 .checkbox-row label { margin-bottom: 0; }
@@ -149,7 +158,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 /* ------------------------------------------------------------------ tables */
 .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-th, td { padding: 11px 14px; text-align: left; border-bottom: 1px solid var(--line); }
+/* `start` follows the document direction, so tables mirror automatically. */
+th, td { padding: 11px 14px; text-align: start; border-bottom: 1px solid var(--line); }
 th { background: var(--surface-2); font-weight: 700; color: var(--ink-soft); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
 tr:last-child td { border-bottom: none; }
 
@@ -181,6 +191,21 @@ tr:last-child td { border-bottom: none; }
 
 /* ------------------------------------------------------------------- misc */
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-soft); }
+
+/* ------------------------------------------------------- direction support */
+/* Latin-only strings (emails, references, times) inside an RTL paragraph get
+   their punctuation reordered by the bidi algorithm unless isolated. */
+.ltr-text { direction: ltr; unicode-bidi: isolate; text-align: start; }
+
+/* The month arrows point at "previous" and "next", not left and right. */
+body.is-rtl .calendar-nav-prev,
+body.is-rtl .calendar-nav-next { transform: scaleX(-1); }
+
+/* Date and time inputs stay LTR — the browser widget is built that way. */
+body.is-rtl input[type='date'],
+body.is-rtl input[type='time'],
+body.is-rtl input[type='email'],
+body.is-rtl input[type='password'] { direction: ltr; text-align: start; }
 .empty h3 { color: var(--ink); margin-bottom: 6px; }
 .divider { height: 1px; background: var(--line); margin: 20px 0; border: none; }
 

@@ -14,25 +14,28 @@ import {
 import { recordAudit } from '@/lib/audit';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { registerSchema, loginSchema, fieldErrors } from '@/lib/validation';
+import { getT } from '@/lib/locale';
 
 export type ActionState = {
   error?: string;
   fieldErrors?: Record<string, string>;
 };
 
-const GENERIC_LOGIN_ERROR = 'That email and password combination is not recognised.';
-
 export async function registerAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const { d } = await getT();
+
   const ip = clientIp(await headers());
   const limit = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
   if (!limit.ok) {
-    return { error: `Too many sign-up attempts. Try again in ${limit.retryAfterSeconds}s.` };
+    return {
+      error: `${d.errors.tooManySignups} ${limit.retryAfterSeconds}${d.errors.seconds}`
+    };
   }
 
-  const parsed = registerSchema.safeParse({
+  const parsed = registerSchema(d).safeParse({
     name: formData.get('name'),
     email: formData.get('email'),
     password: formData.get('password')
@@ -67,10 +70,10 @@ export async function registerAction(
     await createSession({ id: user.id });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return { fieldErrors: { email: 'An account with this email already exists.' } };
+      return { fieldErrors: { email: d.errors.emailExists } };
     }
     console.error('register failed', error);
-    return { error: 'Something went wrong creating your account. Try again.' };
+    return { error: d.errors.registerFailed };
   }
 
   redirect('/courses');
@@ -80,13 +83,17 @@ export async function loginAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const { d } = await getT();
+
   const ip = clientIp(await headers());
   const limit = rateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
   if (!limit.ok) {
-    return { error: `Too many attempts. Try again in ${limit.retryAfterSeconds}s.` };
+    return {
+      error: `${d.errors.tooManyAttempts} ${limit.retryAfterSeconds}${d.errors.seconds}`
+    };
   }
 
-  const parsed = loginSchema.safeParse({
+  const parsed = loginSchema(d).safeParse({
     email: formData.get('email'),
     password: formData.get('password')
   });
@@ -99,7 +106,7 @@ export async function loginAction(
     // Per-account limiter as well, so a botnet rotating IPs still cannot
     // grind one specific account.
     rateLimit(`login-account:${parsed.data.email}`, 10, 15 * 60 * 1000);
-    return { error: GENERIC_LOGIN_ERROR };
+    return { error: d.errors.badCredentials };
   }
 
   await createSession({ id: user.id });

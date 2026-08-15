@@ -57,7 +57,7 @@ Development:
 | `JWT_SECRET` | Min 32 chars — use Vercel's **Generate Secret** button |
 | `ADMIN_EMAIL` | Your email — this is your login |
 | `ADMIN_NAME` | Your name |
-| `ADMIN_PASSWORD` | Min 10 chars — your first-login password only |
+| `ADMIN_PASSWORD` | Min 8 chars — your first-login password only |
 
 **4 — Deploy.** The build creates the schema, seeds your admin account and two
 sample courses.
@@ -114,6 +114,43 @@ npm run dev
 `binaries.prisma.sh` — allow that host if you are behind a proxy.
 `npm run admin:reset` issues a fresh temporary password if you prefer the CLI
 route to the environment-variable one.
+
+---
+
+## Languages and RTL
+
+The interface ships in **Arabic (default)** and English. The toggle sits in the
+top bar and shows the *other* language, so it reads as the thing you get by
+pressing it.
+
+- Locale lives in a `course_platform_locale` cookie, validated against the
+  allowed list on write. Missing or unrecognised means Arabic.
+- The root layout sets `lang` and `dir` on `<html>`. That single attribute is
+  what mirrors flexbox, grid, logical CSS properties and the browser's own bidi
+  handling — which is why there is almost no per-component RTL code.
+- Arabic renders in Noto Kufi Arabic, with the negative letter-spacing removed
+  from headings (it pulls Arabic letterforms into each other) and a looser line
+  height.
+- The week starts **Sunday in Arabic, Monday in English**, driven by
+  `calendar.weekStart`. The month arrows are mirrored in CSS rather than by
+  swapping their handlers, so DOM and tab order stay correct.
+- Latin-only runs inside Arabic text — emails, `BK-000001` references, clock
+  times, `Asia/Kuwait` — are wrapped in `.ltr-text`, which isolates them from
+  the bidi algorithm. Without it the punctuation in `BK-000001` gets reordered
+  and the reference reads wrong.
+- Date and time inputs stay LTR, because the native browser widget is built
+  that way and forcing it RTL breaks the picker.
+
+Server actions return **translated** messages: schemas in `lib/validation.ts`
+are built per request from the caller's dictionary, so zod errors arrive in the
+user's language rather than being translated at the last moment in the UI.
+
+### Adding a language
+
+Add the locale to `LOCALES` and `isLocale` in `lib/i18n.ts`, then add a
+dictionary object typed `Dictionary`. TypeScript will list every key you have
+not translated yet. Set `dir` in that dictionary and, if it is RTL, extend the
+`isRtl` check.
 
 ---
 
@@ -177,7 +214,12 @@ POST, so each one defends itself rather than trusting the page that rendered it.
 
 **Input**
 - zod validates every action input, with length caps on every string so a
-  crafted request cannot push megabytes into the database.
+  crafted request cannot push megabytes into the database. Passwords are
+  minimum 8 characters (`PASSWORD_MIN` in `lib/validation.ts` — the client
+  `minLength` reads from the same constant, so the two cannot drift).
+- The locale cookie is the one deliberately non-httpOnly cookie: it is a
+  display preference, not a credential. It is still validated against the
+  allowed list on write rather than reflected back into the markup.
 - Rate limiting on login (10 per 15 min per IP, plus a per-account bucket so
   rotating IPs cannot grind one account) and registration (5 per hour per IP).
 
@@ -230,3 +272,6 @@ and direct URLs being swapped.
 4. A cancellation cutoff (e.g. no cancelling within 24h).
 5. Payments (Stripe), with `Booking.status` gaining `PENDING_PAYMENT`.
 6. Per-user timezones — currently everything renders in `APP_TIMEZONE`.
+7. Arabic course content. The interface is translated, but course titles and
+   descriptions are stored as single strings — bilingual courses would need
+   `title_ar` / `title_en` columns or a translations table.

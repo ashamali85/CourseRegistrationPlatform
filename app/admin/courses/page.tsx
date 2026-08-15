@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
+import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 import CourseManager, { type AdminCourse } from '@/components/CourseManager';
 
@@ -7,6 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminCoursesPage() {
   const admin = await requireAdmin();
+  const { d } = await getT();
 
   const courses = await prisma.course.findMany({
     orderBy: { createdAt: 'desc' },
@@ -32,8 +34,8 @@ export default async function AdminCoursesPage() {
         <div className="container">
           <div className="section-title">
             <div>
-              <h1>Courses</h1>
-              <p className="muted mt-2">Only published courses appear to students.</p>
+              <h1>{d.admin.coursesTitle}</h1>
+              <p className="muted mt-2">{d.admin.coursesSubtitle}</p>
             </div>
           </div>
           <CourseManager courses={data} />

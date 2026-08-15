@@ -2,10 +2,13 @@
 
 import { useActionState } from 'react';
 import { changePasswordAction, type ActionState } from '@/lib/actions/account-actions';
+import { useI18n } from '@/components/I18nProvider';
+import { PASSWORD_MIN } from '@/lib/validation';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
 export default function ChangePasswordForm() {
+  const { d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(
     changePasswordAction,
     {}
@@ -16,7 +19,7 @@ export default function ChangePasswordForm() {
       {state.error && <FormAlert error={state.error} />}
 
       <div className="field">
-        <label htmlFor="currentPassword">Current password</label>
+        <label htmlFor="currentPassword">{d.account.currentPassword}</label>
         <input
           id="currentPassword"
           name="currentPassword"
@@ -30,29 +33,29 @@ export default function ChangePasswordForm() {
       </div>
 
       <div className="field">
-        <label htmlFor="newPassword">New password</label>
+        <label htmlFor="newPassword">{d.account.newPassword}</label>
         <input
           id="newPassword"
           name="newPassword"
           type="password"
           autoComplete="new-password"
-          minLength={10}
+          minLength={PASSWORD_MIN}
           required
         />
-        <p className="small muted mt-2">At least 10 characters.</p>
+        <p className="small muted mt-2">{d.auth.minChars}</p>
         {state.fieldErrors?.newPassword && (
           <p className="field-error">{state.fieldErrors.newPassword}</p>
         )}
       </div>
 
       <div className="field">
-        <label htmlFor="confirmPassword">Repeat new password</label>
+        <label htmlFor="confirmPassword">{d.account.repeatPassword}</label>
         <input
           id="confirmPassword"
           name="confirmPassword"
           type="password"
           autoComplete="new-password"
-          minLength={10}
+          minLength={PASSWORD_MIN}
           required
         />
         {state.fieldErrors?.confirmPassword && (
@@ -60,8 +63,8 @@ export default function ChangePasswordForm() {
         )}
       </div>
 
-      <SubmitButton className="btn btn-primary btn-block" pendingLabel="Saving…">
-        Save new password
+      <SubmitButton className="btn btn-primary btn-block" pendingLabel={d.common.saving}>
+        {d.account.savePassword}
       </SubmitButton>
     </form>
   );

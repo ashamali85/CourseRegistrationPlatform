@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs';
 import { SignJWT, jwtVerify } from 'jose';
 import { prisma } from '@/lib/db';
 import { getJwtSecret } from '@/lib/env';
+import { getDictionary } from '@/lib/i18n';
+import { getLocale } from '@/lib/locale';
 
 const COOKIE_NAME = 'course_platform_session';
 const BCRYPT_ROUNDS = 12;
@@ -166,16 +168,19 @@ export async function requireAdmin(opts: GuardOptions = {}): Promise<SessionUser
  */
 export async function requireUserAction(opts: GuardOptions = {}): Promise<SessionUser> {
   const user = await getSessionUser();
-  if (!user) throw new Error('Your session has expired. Sign in again.');
+  const d = getDictionary(await getLocale());
+  if (!user) throw new Error(d.errors.sessionExpired);
   if (user.mustChangePassword && !opts.allowPendingPasswordChange) {
-    throw new Error('Set a new password before continuing.');
+    throw new Error(d.errors.setPasswordFirst);
   }
   return user;
 }
 
 export async function requireAdminAction(opts: GuardOptions = {}): Promise<SessionUser> {
   const user = await requireUserAction(opts);
-  if (user.role !== 'ADMIN') throw new Error('You do not have access to this action.');
+  if (user.role !== 'ADMIN') {
+    throw new Error(getDictionary(await getLocale()).errors.noAccess);
+  }
   return user;
 }
 

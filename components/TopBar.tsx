@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { logoutAction } from '@/lib/actions/auth-actions';
+import { getT } from '@/lib/locale';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import type { SessionUser } from '@/lib/auth';
 
-export default function TopBar({ user }: { user: SessionUser }) {
+export default async function TopBar({ user }: { user: SessionUser }) {
+  const { locale, d } = await getT();
   const isAdmin = user.role === 'ADMIN';
 
   return (
@@ -10,26 +13,27 @@ export default function TopBar({ user }: { user: SessionUser }) {
       <div className="container">
         <Link href={isAdmin ? '/admin' : '/courses'} className="brand-mark">
           <span className="brand-dot" />
-          Course Booking
+          {d.common.appName}
         </Link>
 
         <nav className="nav">
           {isAdmin ? (
             <>
-              <Link href="/admin">Dashboard</Link>
-              <Link href="/admin/courses">Courses</Link>
-              <Link href="/admin/availability">Availability</Link>
-              <Link href="/admin/bookings">Bookings</Link>
+              <Link href="/admin">{d.nav.dashboard}</Link>
+              <Link href="/admin/courses">{d.nav.courses}</Link>
+              <Link href="/admin/availability">{d.nav.availability}</Link>
+              <Link href="/admin/bookings">{d.nav.bookings}</Link>
             </>
           ) : (
             <>
-              <Link href="/courses">Courses</Link>
-              <Link href="/bookings">My bookings</Link>
+              <Link href="/courses">{d.nav.courses}</Link>
+              <Link href="/bookings">{d.nav.myBookings}</Link>
             </>
           )}
-          <Link href="/change-password">Password</Link>
+          <Link href="/change-password">{d.nav.password}</Link>
+          <LanguageSwitcher locale={locale} />
           <form action={logoutAction}>
-            <button type="submit">Sign out</button>
+            <button type="submit">{d.nav.signOut}</button>
           </form>
         </nav>
       </div>

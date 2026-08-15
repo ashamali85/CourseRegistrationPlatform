@@ -45,8 +45,8 @@ async function main() {
   if (!email) {
     console.warn('[seed] ADMIN_EMAIL not set — skipping admin creation.');
   } else {
-    if (providedPassword && providedPassword.length < 10) {
-      throw new Error('[seed] ADMIN_PASSWORD must be at least 10 characters.');
+    if (providedPassword && providedPassword.length < 8) {
+      throw new Error('[seed] ADMIN_PASSWORD must be at least 8 characters.');
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });

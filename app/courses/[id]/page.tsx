@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { startOfTodayUtc } from '@/lib/time';
+import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 import SlotCalendar, { type CalendarSlot } from '@/components/SlotCalendar';
 
@@ -14,6 +15,7 @@ export default async function CourseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const user = await requireUser();
+  const { d } = await getT();
   const { id } = await params;
 
   const course = await prisma.course.findUnique({ where: { id } });
@@ -51,7 +53,7 @@ export default async function CourseDetailPage({
       <div className="page">
         <div className="container">
           <p className="small mt-2">
-            <Link href="/courses">← All courses</Link>
+            <Link href="/courses">{d.courses.allCourses}</Link>
           </p>
 
           <div className="card mt-4">
@@ -60,7 +62,9 @@ export default async function CourseDetailPage({
                 <h1>{course.title}</h1>
                 {course.summary && <p className="muted mt-2">{course.summary}</p>}
               </div>
-              <span className="pill pill-brand">{course.durationMinutes} min</span>
+              <span className="pill pill-brand">
+                {course.durationMinutes} {d.common.minutes}
+              </span>
             </div>
 
             {course.description && (
@@ -73,10 +77,8 @@ export default async function CourseDetailPage({
 
           <div className="section-title mt-6">
             <div>
-              <h2>Choose a time</h2>
-              <p className="muted small mt-2">
-                Highlighted days have open slots. Select one to see the times.
-              </p>
+              <h2>{d.courses.chooseTime}</h2>
+              <p className="muted small mt-2">{d.courses.chooseTimeHint}</p>
             </div>
           </div>
 

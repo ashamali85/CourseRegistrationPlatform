@@ -1,94 +1,112 @@
 import { z } from 'zod';
+import type { Dictionary } from '@/lib/i18n';
 
 /**
- * Every server action validates its input through one of these. Lengths are
- * capped so a crafted request cannot push megabytes into the database.
+ * Every server action validates its input through one of these. Schemas are
+ * built per-request from the caller's dictionary so validation errors come back
+ * in the user's own language. Lengths are capped so a crafted request cannot
+ * push megabytes into the database.
  */
 
-export const emailSchema = z
-  .string()
-  .trim()
-  .toLowerCase()
-  .min(5, 'Enter a valid email address.')
-  .max(160, 'That email address is too long.')
-  .email('Enter a valid email address.');
+export const PASSWORD_MIN = 8;
 
-export const passwordSchema = z
-  .string()
-  .min(10, 'Use at least 10 characters.')
-  .max(200, 'That password is too long.');
+export function emailSchema(d: Dictionary) {
+  return z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(5, d.validation.enterValidEmail)
+    .max(160, d.validation.emailTooLong)
+    .email(d.validation.enterValidEmail);
+}
 
-export const registerSchema = z.object({
-  name: z.string().trim().min(2, 'Enter your name.').max(80, 'That name is too long.'),
-  email: emailSchema,
-  password: passwordSchema
-});
+export function passwordSchema(d: Dictionary) {
+  return z
+    .string()
+    .min(PASSWORD_MIN, d.validation.passwordMin)
+    .max(200, d.validation.passwordTooLong);
+}
 
-export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().min(1, 'Enter your email address.').max(160),
-  password: z.string().min(1, 'Enter your password.').max(200)
-});
-
-export const changePasswordSchema = z
-  .object({
-    currentPassword: z.string().min(1, 'Enter your current password.').max(200),
-    newPassword: passwordSchema,
-    confirmPassword: z.string().min(1, 'Repeat the new password.').max(200)
-  })
-  .refine((v) => v.newPassword === v.confirmPassword, {
-    message: 'The two passwords do not match.',
-    path: ['confirmPassword']
-  })
-  .refine((v) => v.newPassword !== v.currentPassword, {
-    message: 'Choose a password different from your current one.',
-    path: ['newPassword']
+export function registerSchema(d: Dictionary) {
+  return z.object({
+    name: z.string().trim().min(2, d.validation.enterName).max(80, d.validation.nameTooLong),
+    email: emailSchema(d),
+    password: passwordSchema(d)
   });
+}
 
-export const courseSchema = z.object({
-  title: z.string().trim().min(3, 'Give the course a title.').max(120),
-  summary: z.string().trim().max(200, 'Keep the summary under 200 characters.').default(''),
-  description: z.string().trim().max(4000).default(''),
-  durationMinutes: z.coerce
-    .number()
-    .int('Duration must be a whole number of minutes.')
-    .min(15, 'Minimum duration is 15 minutes.')
-    .max(480, 'Maximum duration is 8 hours.'),
-  isPublished: z.coerce.boolean().default(false)
-});
+export function loginSchema(d: Dictionary) {
+  return z.object({
+    email: z.string().trim().toLowerCase().min(1, d.validation.enterEmail).max(160),
+    password: z.string().min(1, d.validation.enterPassword).max(200)
+  });
+}
 
-export const courseIdSchema = z.object({
-  courseId: z.string().trim().cuid('Unknown course.')
-});
+export function changePasswordSchema(d: Dictionary) {
+  return z
+    .object({
+      currentPassword: z.string().min(1, d.validation.enterCurrentPassword).max(200),
+      newPassword: passwordSchema(d),
+      confirmPassword: z.string().min(1, d.validation.repeatNewPassword).max(200)
+    })
+    .refine((v) => v.newPassword === v.confirmPassword, {
+      message: d.validation.passwordsDoNotMatch,
+      path: ['confirmPassword']
+    })
+    .refine((v) => v.newPassword !== v.currentPassword, {
+      message: d.validation.differentPassword,
+      path: ['newPassword']
+    });
+}
 
-export const slotSchema = z
-  .object({
-    // datetime-local sends "YYYY-MM-DDTHH:mm" with no zone.
-    date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date.'),
-    startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, 'Pick a start time.'),
-    endTime: z.string().trim().regex(/^\d{2}:\d{2}$/, 'Pick an end time.'),
-    capacity: z.coerce
+export function courseSchema(d: Dictionary) {
+  return z.object({
+    title: z.string().trim().min(3, d.validation.courseTitleRequired).max(120),
+    summary: z.string().trim().max(200, d.validation.summaryTooLong).default(''),
+    description: z.string().trim().max(4000, d.validation.tooLong).default(''),
+    durationMinutes: z.coerce
       .number()
-      .int()
-      .min(1, 'Capacity must be at least 1.')
-      .max(100, 'Capacity cannot exceed 100.'),
-    note: z.string().trim().max(200).default(''),
-    // '' means "open to any published course"
-    courseId: z.string().trim().max(40).default('')
-  })
-  .refine((v) => v.endTime > v.startTime, {
-    message: 'The end time must be after the start time.',
-    path: ['endTime']
+      .int(d.validation.durationWhole)
+      .min(15, d.validation.durationMin)
+      .max(480, d.validation.durationMax),
+    isPublished: z.coerce.boolean().default(false)
   });
+}
 
-export const bookSlotSchema = z.object({
-  slotId: z.string().trim().cuid('Unknown time slot.'),
-  courseId: z.string().trim().cuid('Unknown course.'),
-  notes: z.string().trim().max(500, 'Keep your note under 500 characters.').default('')
-});
+export function slotSchema(d: Dictionary) {
+  return z
+    .object({
+      date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, d.validation.pickDate),
+      startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickStart),
+      endTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickEnd),
+      capacity: z.coerce
+        .number()
+        .int()
+        .min(1, d.validation.capacityMin)
+        .max(100, d.validation.capacityMax),
+      note: z.string().trim().max(200, d.validation.tooLong).default(''),
+      // '' means "open to any published course"
+      courseId: z.string().trim().max(40).default('')
+    })
+    .refine((v) => v.endTime > v.startTime, {
+      message: d.validation.endAfterStart,
+      path: ['endTime']
+    });
+}
 
-export const idSchema = z.object({
-  id: z.string().trim().cuid('Unknown record.')
-});
+export function bookSlotSchema(d: Dictionary) {
+  return z.object({
+    slotId: z.string().trim().cuid(d.errors.unknownSlot),
+    courseId: z.string().trim().cuid(d.errors.unknownCourse),
+    notes: z.string().trim().max(500, d.validation.notesTooLong).default('')
+  });
+}
+
+export function idSchema(d: Dictionary) {
+  return z.object({
+    id: z.string().trim().cuid(d.errors.unknownRecord)
+  });
+}
 
 /** Turn a ZodError into the { field: message } shape the forms render. */
 export function fieldErrors(error: z.ZodError): Record<string, string> {

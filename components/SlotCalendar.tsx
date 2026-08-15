@@ -3,6 +3,8 @@
 import { useActionState, useMemo, useState } from 'react';
 import { bookSlotAction, type ActionState } from '@/lib/actions/booking-actions';
 import { formatTime, dayKey } from '@/lib/format';
+import { orderedWeekdays } from '@/lib/i18n';
+import { useI18n } from '@/components/I18nProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -16,12 +18,6 @@ export type CalendarSlot = {
   note: string;
 };
 
-const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
-];
-
 export default function SlotCalendar({
   courseId,
   slots
@@ -29,7 +25,11 @@ export default function SlotCalendar({
   courseId: string;
   slots: CalendarSlot[];
 }) {
+  const { locale, d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(bookSlotAction, {});
+
+  const weekStart = d.calendar.weekStart;
+  const weekdays = useMemo(() => orderedWeekdays(d), [d]);
 
   // Bucket slots by calendar day so the grid can show which days have anything.
   const byDay = useMemo(() => {
@@ -59,20 +59,22 @@ export default function SlotCalendar({
 
   const todayKey = dayKey(new Date());
 
-  // Build the month grid, Monday-first.
+  // Build the month grid. Arabic starts the week on Sunday, English on Monday,
+  // so the leading blank count comes from the locale's weekStart rather than
+  // being hard-coded.
   const cells = useMemo(() => {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1));
     const daysInMonth = new Date(Date.UTC(viewYear, viewMonth + 1, 0)).getUTCDate();
-    const leading = (first.getUTCDay() + 6) % 7; // Sun=0 -> Mon-first
+    const leading = (first.getUTCDay() - weekStart + 7) % 7;
 
     const out: Array<{ key: string; day: number } | null> = [];
     for (let i = 0; i < leading; i++) out.push(null);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const key = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      out.push({ key, day: d });
+    for (let day = 1; day <= daysInMonth; day++) {
+      const key = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      out.push({ key, day });
     }
     return out;
-  }, [viewYear, viewMonth]);
+  }, [viewYear, viewMonth, weekStart]);
 
   function shiftMonth(delta: number) {
     const next = new Date(Date.UTC(viewYear, viewMonth + delta, 1));
@@ -85,8 +87,8 @@ export default function SlotCalendar({
   if (slots.length === 0) {
     return (
       <div className="empty">
-        <h3>No times available yet</h3>
-        <p>There are no open slots for this course right now. Check back soon.</p>
+        <h3>{d.calendar.noTimesTitle}</h3>
+        <p>{d.calendar.noTimesBody}</p>
       </div>
     );
   }
@@ -95,31 +97,34 @@ export default function SlotCalendar({
     <div className="stack">
       <div className="calendar">
         <div className="calendar-head">
+          {/* "Previous" sits on the right in RTL. The glyph is mirrored in CSS
+              rather than swapping the handlers, so the DOM order stays correct
+              for screen readers and keyboard tabbing. */}
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm calendar-nav-prev"
             onClick={() => shiftMonth(-1)}
-            aria-label="Previous month"
+            aria-label={d.calendar.prevMonth}
           >
             ←
           </button>
           <span className="calendar-month">
-            {MONTHS[viewMonth]} {viewYear}
+            {d.calendar.months[viewMonth]} {viewYear}
           </span>
           <button
             type="button"
-            className="btn btn-ghost btn-sm"
+            className="btn btn-ghost btn-sm calendar-nav-next"
             onClick={() => shiftMonth(1)}
-            aria-label="Next month"
+            aria-label={d.calendar.nextMonth}
           >
             →
           </button>
         </div>
 
         <div className="calendar-grid">
-          {DOW.map((d) => (
-            <div key={d} className="calendar-dow">
-              {d}
+          {weekdays.map((label) => (
+            <div key={label} className="calendar-dow">
+              {label}
             </div>
           ))}
 
@@ -143,7 +148,11 @@ export default function SlotCalendar({
                 type="button"
                 className={classes}
                 disabled={!hasSlots}
-                aria-label={`${cell.day} ${MONTHS[viewMonth]}${hasSlots ? `, ${daySlots.length} time(s) available` : ', no times'}`}
+                aria-label={`${cell.day} ${d.calendar.months[viewMonth]} — ${
+                  hasSlots
+                    ? `${daySlots.length} ${d.calendar.timesAvailable}`
+                    : d.calendar.noTimes
+                }`}
                 onClick={() => hasSlots && setSelectedDay(cell.key)}
               >
                 {cell.day}
@@ -161,12 +170,16 @@ export default function SlotCalendar({
       {selectedDay && (
         <div className="card">
           <div className="section-title">
-            <h3>Times on {selectedDay}</h3>
-            <span className="muted small">{selectedSlots.length} available</span>
+            <h3>
+              {d.calendar.timesOn} <span className="ltr-text">{selectedDay}</span>
+            </h3>
+            <span className="muted small">
+              {selectedSlots.length} {d.calendar.available}
+            </span>
           </div>
 
           {selectedSlots.length === 0 ? (
-            <p className="muted">Nothing open on this day.</p>
+            <p className="muted">{d.calendar.nothingOpen}</p>
           ) : (
             <div className="slot-list">
               {selectedSlots.map((slot) => {
@@ -176,18 +189,18 @@ export default function SlotCalendar({
                     key={slot.id}
                     className={`slot-card${full && !slot.bookedByMe ? ' is-full' : ''}`}
                   >
-                    <div className="slot-time">
-                      {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+                    <div className="slot-time ltr-text">
+                      {formatTime(slot.startsAt, locale)} – {formatTime(slot.endsAt, locale)}
                     </div>
 
                     <div className="mt-2">
                       {slot.bookedByMe ? (
-                        <span className="pill pill-ok">Booked by you</span>
+                        <span className="pill pill-ok">{d.calendar.bookedByYou}</span>
                       ) : full ? (
-                        <span className="pill pill-muted">Fully booked</span>
+                        <span className="pill pill-muted">{d.calendar.fullyBooked}</span>
                       ) : (
                         <span className="pill pill-brand">
-                          {slot.seatsLeft} of {slot.capacity} left
+                          {slot.seatsLeft} {d.calendar.of} {slot.capacity} {d.calendar.seatsLeft}
                         </span>
                       )}
                     </div>
@@ -200,9 +213,9 @@ export default function SlotCalendar({
                         <input type="hidden" name="courseId" value={courseId} />
                         <SubmitButton
                           className="btn btn-primary btn-sm btn-block"
-                          pendingLabel="Booking…"
+                          pendingLabel={d.calendar.booking}
                         >
-                          Book this time
+                          {d.calendar.bookThisTime}
                         </SubmitButton>
                       </form>
                     )}

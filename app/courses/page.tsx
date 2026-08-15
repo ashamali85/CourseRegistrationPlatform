@@ -2,12 +2,14 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { startOfTodayUtc } from '@/lib/time';
+import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CoursesPage() {
   const user = await requireUser();
+  const { d } = await getT();
   const now = startOfTodayUtc();
 
   // Students only ever see published courses.
@@ -43,15 +45,15 @@ export default async function CoursesPage() {
         <div className="container">
           <div className="section-title">
             <div>
-              <h1>Available courses</h1>
-              <p className="muted mt-2">Pick a course to see open times.</p>
+              <h1>{d.courses.title}</h1>
+              <p className="muted mt-2">{d.courses.subtitle}</p>
             </div>
           </div>
 
           {courses.length === 0 ? (
             <div className="card empty">
-              <h3>No courses published yet</h3>
-              <p>Check back shortly — new sessions are added regularly.</p>
+              <h3>{d.courses.emptyTitle}</h3>
+              <p>{d.courses.emptyBody}</p>
             </div>
           ) : (
             <div className="grid-cards">
@@ -62,13 +64,17 @@ export default async function CoursesPage() {
                     <div className="row-between wrap">
                       <h3>{course.title}</h3>
                       {open > 0 ? (
-                        <span className="pill pill-ok">{open} times open</span>
+                        <span className="pill pill-ok">
+                          {open} {d.courses.timesOpen}
+                        </span>
                       ) : (
-                        <span className="pill pill-muted">No times yet</span>
+                        <span className="pill pill-muted">{d.courses.noTimesYet}</span>
                       )}
                     </div>
                     {course.summary && <p className="muted small mt-2">{course.summary}</p>}
-                    <p className="muted small mt-4">{course.durationMinutes} minute session</p>
+                    <p className="muted small mt-4">
+                      {course.durationMinutes} {d.courses.minuteSession}
+                    </p>
                   </Link>
                 );
               })}

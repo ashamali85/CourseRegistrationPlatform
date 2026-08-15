@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db';
 import { requireAdminAction } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit';
 import { courseSchema, slotSchema, idSchema, fieldErrors } from '@/lib/validation';
+import { getT } from '@/lib/locale';
+import { fill } from '@/lib/i18n';
 import { zonedInputToUtc } from '@/lib/time';
 import { formatDateTime } from '@/lib/format';
 
@@ -22,8 +24,9 @@ export async function createCourseAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireAdminAction();
+  const { locale, d } = await getT();
 
-  const parsed = courseSchema.safeParse({
+  const parsed = courseSchema(d).safeParse({
     title: formData.get('title'),
     summary: formData.get('summary') ?? '',
     description: formData.get('description') ?? '',
@@ -44,7 +47,7 @@ export async function createCourseAction(
 
   revalidatePath('/admin/courses');
   revalidatePath('/courses');
-  return { ok: true, message: `Created "${course.title}".` };
+  return { ok: true, message: fill(d.success.created, { name: course.title }) };
 }
 
 export async function updateCourseAction(
@@ -52,11 +55,12 @@ export async function updateCourseAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireAdminAction();
+  const { d } = await getT();
 
-  const id = idSchema.safeParse({ id: formData.get('id') });
-  if (!id.success) return { error: 'Unknown course.' };
+  const id = idSchema(d).safeParse({ id: formData.get('id') });
+  if (!id.success) return { error: d.errors.unknownCourse };
 
-  const parsed = courseSchema.safeParse({
+  const parsed = courseSchema(d).safeParse({
     title: formData.get('title'),
     summary: formData.get('summary') ?? '',
     description: formData.get('description') ?? '',
@@ -80,7 +84,7 @@ export async function updateCourseAction(
 
   revalidatePath('/admin/courses');
   revalidatePath('/courses');
-  return { ok: true, message: `Saved "${course.title}".` };
+  return { ok: true, message: fill(d.success.saved, { name: course.title }) };
 }
 
 export async function deleteCourseAction(
@@ -88,17 +92,16 @@ export async function deleteCourseAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireAdminAction();
+  const { d } = await getT();
 
-  const id = idSchema.safeParse({ id: formData.get('id') });
-  if (!id.success) return { error: 'Unknown course.' };
+  const id = idSchema(d).safeParse({ id: formData.get('id') });
+  if (!id.success) return { error: d.errors.unknownCourse };
 
   const confirmed = await prisma.booking.count({
     where: { courseId: id.data.id, status: 'CONFIRMED' }
   });
   if (confirmed > 0) {
-    return {
-      error: `This course has ${confirmed} confirmed booking(s). Unpublish it instead of deleting it.`
-    };
+    return { error: fill(d.errors.courseHasBookings, { n: confirmed }) };
   }
 
   const course = await prisma.course.delete({ where: { id: id.data.id } });
@@ -113,7 +116,7 @@ export async function deleteCourseAction(
 
   revalidatePath('/admin/courses');
   revalidatePath('/courses');
-  return { ok: true, message: `Deleted "${course.title}".` };
+  return { ok: true, message: fill(d.success.deleted, { name: course.title }) };
 }
 
 // ---------------------------------------------------------------- availability
@@ -123,8 +126,9 @@ export async function createSlotAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireAdminAction();
+  const { locale, d } = await getT();
 
-  const parsed = slotSchema.safeParse({
+  const parsed = slotSchema(d).safeParse({
     date: formData.get('date'),
     startTime: formData.get('startTime'),
     endTime: formData.get('endTime'),
@@ -140,7 +144,7 @@ export async function createSlotAction(
   const endsAt = zonedInputToUtc(date, endTime);
 
   if (startsAt.getTime() < Date.now()) {
-    return { fieldErrors: { date: 'That time is in the past.' } };
+    return { fieldErrors: { date: d.errors.slotInPast } };
   }
 
   // A courseId of '' means "open to any published course". Anything else must
@@ -148,7 +152,7 @@ export async function createSlotAction(
   let resolvedCourseId: string | null = null;
   if (courseId) {
     const course = await prisma.course.findUnique({ where: { id: courseId } });
-    if (!course) return { fieldErrors: { courseId: 'That course no longer exists.' } };
+    if (!course) return { fieldErrors: { courseId: d.errors.courseGone } };
     resolvedCourseId = course.id;
   }
 
@@ -158,7 +162,7 @@ export async function createSlotAction(
   });
   if (clash) {
     return {
-      error: `That overlaps an existing slot on ${formatDateTime(clash.startsAt)}.`
+      error: fill(d.errors.slotOverlap, { when: formatDateTime(clash.startsAt, locale) })
     };
   }
 
@@ -171,12 +175,12 @@ export async function createSlotAction(
     action: 'CREATE',
     entityType: 'AvailabilitySlot',
     entityId: slot.id,
-    entityName: formatDateTime(slot.startsAt)
+    entityName: formatDateTime(slot.startsAt, locale)
   });
 
   revalidatePath('/admin/availability');
   revalidatePath('/courses');
-  return { ok: true, message: `Added ${formatDateTime(startsAt)}.` };
+  return { ok: true, message: fill(d.success.slotAdded, { when: formatDateTime(startsAt, locale) }) };
 }
 
 export async function deleteSlotAction(
@@ -184,20 +188,19 @@ export async function deleteSlotAction(
   formData: FormData
 ): Promise<ActionState> {
   const admin = await requireAdminAction();
+  const { locale, d } = await getT();
 
-  const id = idSchema.safeParse({ id: formData.get('id') });
-  if (!id.success) return { error: 'Unknown time slot.' };
+  const id = idSchema(d).safeParse({ id: formData.get('id') });
+  if (!id.success) return { error: d.errors.unknownSlot };
 
   const slot = await prisma.availabilitySlot.findUnique({
     where: { id: id.data.id },
     include: { _count: { select: { bookings: { where: { status: 'CONFIRMED' } } } } }
   });
-  if (!slot) return { error: 'That time slot no longer exists.' };
+  if (!slot) return { error: d.errors.slotGone };
 
   if (slot._count.bookings > 0) {
-    return {
-      error: `${slot._count.bookings} student(s) booked this slot. Cancel their bookings first.`
-    };
+    return { error: fill(d.errors.slotHasBookings, { n: slot._count.bookings }) };
   }
 
   await prisma.availabilitySlot.delete({ where: { id: slot.id } });
@@ -207,10 +210,10 @@ export async function deleteSlotAction(
     action: 'DELETE',
     entityType: 'AvailabilitySlot',
     entityId: slot.id,
-    entityName: formatDateTime(slot.startsAt)
+    entityName: formatDateTime(slot.startsAt, locale)
   });
 
   revalidatePath('/admin/availability');
   revalidatePath('/courses');
-  return { ok: true, message: 'Time slot removed.' };
+  return { ok: true, message: d.success.slotRemoved };
 }

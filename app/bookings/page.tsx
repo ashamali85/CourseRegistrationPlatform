@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { formatDateTime } from '@/lib/format';
+import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 import CancelBookingButton from '@/components/CancelBookingButton';
 
@@ -9,6 +10,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function MyBookingsPage() {
   const user = await requireUser();
+  const { locale, d } = await getT();
 
   // Scoped to the signed-in user by userId — never by a value from the request.
   const bookings = await prisma.booking.findMany({
@@ -32,48 +34,48 @@ export default async function MyBookingsPage() {
         <div className="container">
           <div className="section-title">
             <div>
-              <h1>My bookings</h1>
-              <p className="muted mt-2">Your upcoming and past sessions.</p>
+              <h1>{d.bookings.title}</h1>
+              <p className="muted mt-2">{d.bookings.subtitle}</p>
             </div>
             <Link href="/courses" className="btn btn-primary">
-              Book a session
+              {d.bookings.bookSession}
             </Link>
           </div>
 
           {bookings.length === 0 ? (
             <div className="card empty">
-              <h3>Nothing booked yet</h3>
-              <p>Browse the courses and pick a time that works for you.</p>
+              <h3>{d.bookings.emptyTitle}</h3>
+              <p>{d.bookings.emptyBody}</p>
               <Link href="/courses" className="btn btn-primary mt-4">
-                See courses
+                {d.bookings.seeCourses}
               </Link>
             </div>
           ) : (
             <div className="stack">
               <div className="card">
                 <div className="section-title">
-                  <h3>Upcoming</h3>
+                  <h3>{d.bookings.upcoming}</h3>
                   <span className="muted small">{upcoming.length}</span>
                 </div>
                 {upcoming.length === 0 ? (
-                  <p className="muted">No upcoming sessions.</p>
+                  <p className="muted">{d.bookings.noUpcoming}</p>
                 ) : (
                   <div className="table-wrap">
                     <table>
                       <thead>
                         <tr>
-                          <th>Reference</th>
-                          <th>Course</th>
-                          <th>When</th>
+                          <th>{d.common.reference}</th>
+                          <th>{d.common.course}</th>
+                          <th>{d.common.when}</th>
                           <th />
                         </tr>
                       </thead>
                       <tbody>
                         {upcoming.map((b) => (
                           <tr key={b.id}>
-                            <td>{b.reference}</td>
+                            <td className="ltr-text">{b.reference}</td>
                             <td>{b.course.title}</td>
-                            <td>{formatDateTime(b.slot.startsAt)}</td>
+                            <td>{formatDateTime(b.slot.startsAt, locale)}</td>
                             <td>
                               <CancelBookingButton bookingId={b.id} />
                             </td>
@@ -88,30 +90,30 @@ export default async function MyBookingsPage() {
               {past.length > 0 && (
                 <div className="card">
                   <div className="section-title">
-                    <h3>Past and cancelled</h3>
+                    <h3>{d.bookings.pastAndCancelled}</h3>
                     <span className="muted small">{past.length}</span>
                   </div>
                   <div className="table-wrap">
                     <table>
                       <thead>
                         <tr>
-                          <th>Reference</th>
-                          <th>Course</th>
-                          <th>When</th>
-                          <th>Status</th>
+                          <th>{d.common.reference}</th>
+                          <th>{d.common.course}</th>
+                          <th>{d.common.when}</th>
+                          <th>{d.common.status}</th>
                         </tr>
                       </thead>
                       <tbody>
                         {past.map((b) => (
                           <tr key={b.id}>
-                            <td>{b.reference}</td>
+                            <td className="ltr-text">{b.reference}</td>
                             <td>{b.course.title}</td>
-                            <td>{formatDateTime(b.slot.startsAt)}</td>
+                            <td>{formatDateTime(b.slot.startsAt, locale)}</td>
                             <td>
                               {b.status === 'CANCELLED' ? (
-                                <span className="pill pill-danger">Cancelled</span>
+                                <span className="pill pill-danger">{d.bookings.cancelled}</span>
                               ) : (
-                                <span className="pill pill-muted">Completed</span>
+                                <span className="pill pill-muted">{d.bookings.completed}</span>
                               )}
                             </td>
                           </tr>

@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { startOfTodayUtc } from '@/lib/time';
 import { APP_TIMEZONE } from '@/lib/env';
+import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 import AvailabilityManager, {
   type AdminSlot,
@@ -12,6 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAvailabilityPage() {
   const admin = await requireAdmin();
+  const { d } = await getT();
 
   const [slots, courses] = await Promise.all([
     prisma.availabilitySlot.findMany({
@@ -44,9 +46,9 @@ export default async function AdminAvailabilityPage() {
         <div className="container">
           <div className="section-title">
             <div>
-              <h1>Availability</h1>
+              <h1>{d.admin.availabilityTitle}</h1>
               <p className="muted mt-2">
-                Times are entered and shown in {APP_TIMEZONE}.
+                {d.admin.timezoneNote} <span className="ltr-text">{APP_TIMEZONE}</span>
               </p>
             </div>
           </div>

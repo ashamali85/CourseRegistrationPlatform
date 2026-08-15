@@ -7,6 +7,7 @@ import {
   type ActionState
 } from '@/lib/actions/admin-actions';
 import { formatDate, formatTime } from '@/lib/format';
+import { useI18n } from '@/components/I18nProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -23,12 +24,13 @@ export type AdminSlot = {
 export type CourseOption = { id: string; title: string };
 
 function AddSlotForm({ courses }: { courses: CourseOption[] }) {
+  const { d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(createSlotAction, {});
 
   return (
     <div className="card">
       <div className="section-title">
-        <h3>Add availability</h3>
+        <h3>{d.admin.addAvailability}</h3>
       </div>
 
       <form action={formAction}>
@@ -36,13 +38,13 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
 
         <div className="grid-2 mt-4">
           <div className="field">
-            <label htmlFor="date">Date</label>
+            <label htmlFor="date">{d.admin.date}</label>
             <input id="date" name="date" type="date" required />
             {state.fieldErrors?.date && <p className="field-error">{state.fieldErrors.date}</p>}
           </div>
 
           <div className="field">
-            <label htmlFor="capacity">Seats</label>
+            <label htmlFor="capacity">{d.admin.seats}</label>
             <input
               id="capacity"
               name="capacity"
@@ -52,14 +54,14 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
               defaultValue={1}
               required
             />
-            <p className="small muted mt-2">1 for one-to-one sessions.</p>
+            <p className="small muted mt-2">{d.admin.seatsHint}</p>
             {state.fieldErrors?.capacity && (
               <p className="field-error">{state.fieldErrors.capacity}</p>
             )}
           </div>
 
           <div className="field">
-            <label htmlFor="startTime">Starts</label>
+            <label htmlFor="startTime">{d.admin.starts}</label>
             <input id="startTime" name="startTime" type="time" required />
             {state.fieldErrors?.startTime && (
               <p className="field-error">{state.fieldErrors.startTime}</p>
@@ -67,7 +69,7 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
           </div>
 
           <div className="field">
-            <label htmlFor="endTime">Ends</label>
+            <label htmlFor="endTime">{d.admin.ends}</label>
             <input id="endTime" name="endTime" type="time" required />
             {state.fieldErrors?.endTime && (
               <p className="field-error">{state.fieldErrors.endTime}</p>
@@ -76,9 +78,9 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
         </div>
 
         <div className="field">
-          <label htmlFor="courseId">Course</label>
+          <label htmlFor="courseId">{d.common.course}</label>
           <select id="courseId" name="courseId" defaultValue="">
-            <option value="">Any published course</option>
+            <option value="">{d.admin.anyCourse}</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -86,7 +88,7 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
             ))}
           </select>
           <p className="small muted mt-2">
-            Leave as &ldquo;Any&rdquo; and this time shows up for every published course.
+            {d.admin.anyCourseHint}
           </p>
           {state.fieldErrors?.courseId && (
             <p className="field-error">{state.fieldErrors.courseId}</p>
@@ -94,34 +96,35 @@ function AddSlotForm({ courses }: { courses: CourseOption[] }) {
         </div>
 
         <div className="field">
-          <label htmlFor="note">Note (optional)</label>
-          <input id="note" name="note" maxLength={200} placeholder="Shown to students" />
+          <label htmlFor="note">{d.admin.note}</label>
+          <input id="note" name="note" maxLength={200} placeholder={d.admin.notePlaceholder} />
         </div>
 
-        <SubmitButton pendingLabel="Adding…">Add time slot</SubmitButton>
+        <SubmitButton pendingLabel={d.common.adding}>{d.admin.addSlot}</SubmitButton>
       </form>
     </div>
   );
 }
 
 function SlotRow({ slot }: { slot: AdminSlot }) {
+  const { locale, d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(deleteSlotAction, {});
   const full = slot.booked >= slot.capacity;
 
   return (
     <tr>
       <td>
-        <strong>{formatDate(slot.startsAt)}</strong>
+        <strong>{formatDate(slot.startsAt, locale)}</strong>
         <br />
-        <span className="muted small">
-          {formatTime(slot.startsAt)} – {formatTime(slot.endsAt)}
+        <span className="muted small ltr-text">
+          {formatTime(slot.startsAt, locale)} – {formatTime(slot.endsAt, locale)}
         </span>
       </td>
       <td>
         {slot.courseTitle ? (
           <span className="pill pill-brand">{slot.courseTitle}</span>
         ) : (
-          <span className="pill pill-muted">Any course</span>
+          <span className="pill pill-muted">{d.admin.anyCourseTag}</span>
         )}
         {slot.note && <div className="small muted mt-2">{slot.note}</div>}
       </td>
@@ -133,8 +136,8 @@ function SlotRow({ slot }: { slot: AdminSlot }) {
       <td>
         <form action={formAction}>
           <input type="hidden" name="id" value={slot.id} />
-          <SubmitButton className="btn btn-danger btn-sm" pendingLabel="Removing…">
-            Remove
+          <SubmitButton className="btn btn-danger btn-sm" pendingLabel={d.common.removing}>
+            {d.common.remove}
           </SubmitButton>
         </form>
         {state.error && <p className="field-error">{state.error}</p>}
@@ -150,29 +153,32 @@ export default function AvailabilityManager({
   slots: AdminSlot[];
   courses: CourseOption[];
 }) {
+  const { d } = useI18n();
   return (
     <div className="stack">
       <AddSlotForm courses={courses} />
 
       <div className="card">
         <div className="section-title">
-          <h3>Upcoming slots</h3>
-          <span className="muted small">{slots.length} scheduled</span>
+          <h3>{d.admin.upcomingSlotsTitle}</h3>
+          <span className="muted small">
+            {slots.length} {d.admin.scheduled}
+          </span>
         </div>
 
         {slots.length === 0 ? (
           <div className="empty">
-            <h3>Nothing scheduled</h3>
-            <p>Add a time slot above and students will see it on the course calendar.</p>
+            <h3>{d.admin.noSlotsTitle}</h3>
+            <p>{d.admin.noSlotsBody}</p>
           </div>
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>When</th>
-                  <th>Course</th>
-                  <th>Booked</th>
+                  <th>{d.common.when}</th>
+                  <th>{d.common.course}</th>
+                  <th>{d.admin.booked}</th>
                   <th />
                 </tr>
               </thead>

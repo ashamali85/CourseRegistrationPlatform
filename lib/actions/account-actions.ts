@@ -13,6 +13,7 @@ import {
 import { recordAudit } from '@/lib/audit';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { changePasswordSchema, fieldErrors } from '@/lib/validation';
+import { getT } from '@/lib/locale';
 
 export type ActionState = {
   error?: string;
@@ -25,14 +26,17 @@ export async function changePasswordAction(
 ): Promise<ActionState> {
   // The one action a user with mustChangePassword is allowed to reach.
   const session = await requireUserAction({ allowPendingPasswordChange: true });
+  const { d } = await getT();
 
   const ip = clientIp(await headers());
   const limit = rateLimit(`change-password:${session.id}:${ip}`, 10, 15 * 60 * 1000);
   if (!limit.ok) {
-    return { error: `Too many attempts. Try again in ${limit.retryAfterSeconds}s.` };
+    return {
+      error: `${d.errors.tooManyAttempts} ${limit.retryAfterSeconds}${d.errors.seconds}`
+    };
   }
 
-  const parsed = changePasswordSchema.safeParse({
+  const parsed = changePasswordSchema(d).safeParse({
     currentPassword: formData.get('currentPassword'),
     newPassword: formData.get('newPassword'),
     confirmPassword: formData.get('confirmPassword')
@@ -40,13 +44,13 @@ export async function changePasswordAction(
   if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
 
   const user = await prisma.user.findUnique({ where: { id: session.id } });
-  if (!user || !user.isActive) return { error: 'Your session has expired. Sign in again.' };
+  if (!user || !user.isActive) return { error: d.errors.sessionExpired };
 
   // Re-verify the current password even though they hold a valid session, so a
   // hijacked session cannot lock the real owner out by changing the password.
   const valid = await verifyPassword(parsed.data.currentPassword, user.passwordHash);
   if (!valid) {
-    return { fieldErrors: { currentPassword: 'That is not your current password.' } };
+    return { fieldErrors: { currentPassword: d.errors.notCurrentPassword } };
   }
 
   const changedAt = passwordChangeStamp();
