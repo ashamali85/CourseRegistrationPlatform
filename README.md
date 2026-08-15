@@ -33,59 +33,87 @@ pinning rule is for.
 
 ---
 
-## Setup
+## Deploy (no terminal needed)
 
-```bash
-npm install
-cp .env.example .env      # then fill it in
-npm run setup             # prisma generate && db push && seed
-npm run dev
-```
+Everything runs in Vercel's build. The build script is
+`prisma generate && prisma db push && tsx prisma/seed.ts && next build`, which
+creates the tables and your admin account automatically on first deploy.
 
-`npm install` runs `prisma generate`, which downloads the query engine from
-`binaries.prisma.sh`. If you are behind a restrictive proxy, allow that host.
+**1 — Create a Neon database.** At neon.tech, create a project and copy both
+connection strings. The pooled one has `-pooler` in the hostname; the direct one
+does not.
 
-### Environment
+**2 — Push this folder to a GitHub repo**, then import it in Vercel
+(Add New → Project → Import).
 
-| Variable | Notes |
+**3 — Add Environment Variables** in Vercel *before* the first deploy, under
+Settings → Environment Variables. Add each to Production, Preview and
+Development:
+
+| Variable | Value |
 |---|---|
-| `DATABASE_URL` | Neon **pooled** connection. Used at runtime. |
-| `DIRECT_URL` | Neon **non-pooled**. Used by `prisma db push` / migrations. |
-| `JWT_SECRET` | Min 32 chars. Generate it yourself: `openssl rand -base64 48`. The app throws on boot if it is missing or short. |
-| `ADMIN_EMAIL` / `ADMIN_NAME` | Seeds your admin account. |
-| `ADMIN_PASSWORD` | **Optional.** Leave blank and the seed generates a temporary password, prints it once, and forces a change at first login. Min 10 chars if you do set one. |
-| `NEXT_PUBLIC_APP_TIMEZONE` | Optional, defaults to `Asia/Kuwait`. |
+| `DATABASE_URL` | Neon pooled string (the `-pooler` one) |
+| `DIRECT_URL` | Neon direct string |
+| `JWT_SECRET` | Min 32 chars — use Vercel's **Generate Secret** button |
+| `ADMIN_EMAIL` | Your email — this is your login |
+| `ADMIN_NAME` | Your name |
+| `ADMIN_PASSWORD` | Min 10 chars — your first-login password only |
 
-### Admin credentials
+**4 — Deploy.** The build creates the schema, seeds your admin account and two
+sample courses.
 
-Leave `ADMIN_PASSWORD` blank. `npm run setup` generates a random 16-character
-password with `crypto.randomBytes`, prints it once to your terminal, and marks
-the account `mustChangePassword`:
+**5 — Sign in** at `https://your-app.vercel.app/login` with `ADMIN_EMAIL` and
+`ADMIN_PASSWORD`. You are taken straight to `/change-password` and cannot reach
+anything else until you set a real one.
+
+**6 — After changing it, delete `ADMIN_PASSWORD`** from Vercel. It is dead
+after the change, so it is just a stale secret sitting in your settings.
+
+Then: **Courses** → add one and tick Published → **Availability** → add a time
+slot. Register a second account with a different email to see the student side.
+
+### If you leave ADMIN_PASSWORD blank
+
+The seed generates a random 16-character password with `crypto.randomBytes` and
+prints it in the Vercel build log (Deployments → your deployment → Building):
 
 ```
 ================================================================
-  TEMPORARY ADMIN PASSWORD — shown once, not stored anywhere
+  TEMPORARY ADMIN PASSWORD — generated, shown once
 ================================================================
   Email:    you@example.com
   Password: kJ2mX9pQr4vN8wLz
 ================================================================
 ```
 
-Sign in with it and the app redirects you to `/change-password` and refuses
-every other page and action until you set a real one. The generated password is
-never written to a file, so it cannot leak through git.
+Setting `ADMIN_PASSWORD` yourself is better — build logs persist and are
+visible to everyone with project access.
 
-The seed is idempotent and **never resets an existing password** — if the admin
-already exists it is left alone. Locked out? Run `npm run admin:reset`, which
-issues a fresh temporary password and invalidates every existing session for
-that account.
+### If you get locked out
 
-### Deploy
+No CLI needed. In Vercel: set `ADMIN_PASSWORD` to a new value, add
+`ADMIN_PASSWORD_RESET` = `true`, and redeploy. Sign in, change your password,
+then **delete `ADMIN_PASSWORD_RESET`** — if you leave it set, every future
+deploy resets your password.
 
-Vercel. Build script is
-`prisma generate && prisma db push && tsx prisma/seed.ts && next build`.
-Set every variable above in the Vercel project, including `ADMIN_PASSWORD`, or
-the seed skips admin creation and you will not be able to sign in.
+On a normal deploy the seed never touches an existing password, so redeploying
+is always safe.
+
+---
+
+## Local development (optional)
+
+```bash
+npm install
+cp .env.example .env      # then fill it in
+npm run setup
+npm run dev
+```
+
+`npm install` runs `prisma generate`, which downloads the query engine from
+`binaries.prisma.sh` — allow that host if you are behind a proxy.
+`npm run admin:reset` issues a fresh temporary password if you prefer the CLI
+route to the environment-variable one.
 
 ---
 
@@ -183,12 +211,14 @@ POST, so each one defends itself rather than trusting the page that rendered it.
 
 ## Verified so far
 
-`npm install` and `tsc --noEmit` were run against this tree. Typechecking was
-completed with a stubbed Prisma client because the sandbox could not reach
+Dependencies installed and `tsc --noEmit` run against this tree. Typechecking
+used a stubbed Prisma client because the sandbox could not reach
 `binaries.prisma.sh`; the app layer compiles clean, and the remaining errors
-were all missing-generated-client artifacts that resolve once you run
-`prisma generate` locally. **`npm run build` has not been run against a real
-database** — do that first, since `db push` and the seed run as part of it.
+were all missing-generated-client artifacts that resolve when Vercel runs
+`prisma generate`. **the build has not been run against a real
+database** — your first Vercel deploy is that test. If it fails, the build log
+will say why; the usual causes are a missing environment variable or the pooled
+and direct URLs being swapped.
 
 ## Next steps, roughly in order
 

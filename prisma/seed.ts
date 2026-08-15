@@ -8,10 +8,13 @@ const prisma = new PrismaClient();
  * Idempotent seed. The admin account is the ONLY way an ADMIN user is ever
  * created — self-registration always forces STUDENT.
  *
- * If ADMIN_PASSWORD is set, that password is used. If it is not, a random
- * temporary one is generated HERE, on your machine, printed once, and the
- * account is flagged mustChangePassword so the app forces a change at first
- * login. A generated password is never written to a file or committed.
+ * If ADMIN_PASSWORD is set, that password is used for the first login. If it
+ * is not, a random one is generated and printed to the build log.
+ *
+ * Either way the account is flagged mustChangePassword, so the first login
+ * must set a real password before the app allows anything else. That makes the
+ * seeded credential one-time: once changed, the value sitting in your Vercel
+ * environment variables is no longer a working login.
  */
 function generateTempPassword(): string {
   // 16 chars of base64url from 12 CSPRNG bytes.
@@ -21,7 +24,7 @@ function generateTempPassword(): string {
 function banner(email: string, password: string) {
   const line = '='.repeat(64);
   console.log(`\n${line}`);
-  console.log('  TEMPORARY ADMIN PASSWORD — shown once, not stored anywhere');
+  console.log('  TEMPORARY ADMIN PASSWORD — generated, shown once');
   console.log(line);
   console.log(`  Email:    ${email}`);
   console.log(`  Password: ${password}`);
@@ -34,30 +37,47 @@ function banner(email: string, password: string) {
 async function main() {
   const email = process.env.ADMIN_EMAIL?.toLowerCase().trim();
   const name = process.env.ADMIN_NAME?.trim() || 'Administrator';
-  const providedPassword = process.env.ADMIN_PASSWORD;
+  const providedPassword = process.env.ADMIN_PASSWORD?.trim();
+  // Escape hatch for a lockout, with no CLI: set this to "true", redeploy,
+  // then remove it again.
+  const forceReset = process.env.ADMIN_PASSWORD_RESET?.trim().toLowerCase() === 'true';
 
   if (!email) {
     console.warn('[seed] ADMIN_EMAIL not set — skipping admin creation.');
   } else {
-    const existing = await prisma.user.findUnique({ where: { email } });
+    if (providedPassword && providedPassword.length < 10) {
+      throw new Error('[seed] ADMIN_PASSWORD must be at least 10 characters.');
+    }
 
-    if (existing) {
-      // Never silently reset a password that is already in use. Use
-      // `npm run admin:reset` if you are locked out.
+    const existing = await prisma.user.findUnique({ where: { email } });
+    const usingTemp = !providedPassword;
+    const password = providedPassword ?? generateTempPassword();
+
+    if (existing && !forceReset) {
+      // Normal redeploy: never touch a password that is already in use, or
+      // every deploy would silently reset your credentials.
       if (existing.role !== 'ADMIN') {
         await prisma.user.update({ where: { email }, data: { role: 'ADMIN' } });
         console.log(`[seed] promoted ${email} to ADMIN`);
       } else {
         console.log(`[seed] admin ${email} already exists — left untouched`);
       }
+    } else if (existing && forceReset) {
+      await prisma.user.update({
+        where: { email },
+        data: {
+          passwordHash: await bcrypt.hash(password, 12),
+          role: 'ADMIN',
+          isActive: true,
+          mustChangePassword: true,
+          passwordChangedAt: new Date(Math.floor(Date.now() / 1000) * 1000)
+        }
+      });
+      console.log(`[seed] ADMIN_PASSWORD_RESET was set — password reset for ${email}`);
+      console.log('[seed] all existing sessions for this account are now invalid');
+      console.log('[seed] REMOVE ADMIN_PASSWORD_RESET from your environment now');
+      if (usingTemp) banner(email, password);
     } else {
-      const usingTemp = !providedPassword;
-      const password = providedPassword ?? generateTempPassword();
-
-      if (providedPassword && providedPassword.length < 10) {
-        throw new Error('[seed] ADMIN_PASSWORD must be at least 10 characters.');
-      }
-
       await prisma.user.create({
         data: {
           name,
@@ -65,14 +85,20 @@ async function main() {
           passwordHash: await bcrypt.hash(password, 12),
           role: 'ADMIN',
           isActive: true,
-          // A password you chose yourself does not need forcing; a generated
-          // one always does.
-          mustChangePassword: usingTemp
+          // Always true. Whether the password came from an environment
+          // variable or was generated here, it has passed through storage you
+          // do not fully control — so it is a one-time credential, not a
+          // permanent one.
+          mustChangePassword: true
         }
       });
 
-      if (usingTemp) banner(email, password);
-      else console.log(`[seed] created admin ${email} with the supplied password`);
+      if (usingTemp) {
+        banner(email, password);
+      } else {
+        console.log(`[seed] created admin ${email} using ADMIN_PASSWORD`);
+        console.log('[seed] you will be asked to set a new password at first login');
+      }
     }
   }
 
