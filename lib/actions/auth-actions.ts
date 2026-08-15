@@ -111,6 +111,7 @@ export async function loginAction(
     entityName: user.email
   });
 
+  if (user.mustChangePassword) redirect('/change-password');
   redirect(user.role === 'ADMIN' ? '/admin' : '/courses');
 }
 

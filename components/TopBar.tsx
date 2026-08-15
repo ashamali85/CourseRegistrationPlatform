@@ -27,6 +27,7 @@ export default function TopBar({ user }: { user: SessionUser }) {
               <Link href="/bookings">My bookings</Link>
             </>
           )}
+          <Link href="/change-password">Password</Link>
           <form action={logoutAction}>
             <button type="submit">Sign out</button>
           </form>

@@ -9,7 +9,7 @@ import { jwtVerify } from 'jose/jwt/verify';
  * only when read fresh from the database. Every page and server action calls
  * requireUser()/requireAdmin() itself. Middleware is never the boundary.
  */
-const protectedPrefixes = ['/admin', '/courses', '/bookings'];
+const protectedPrefixes = ['/admin', '/courses', '/bookings', '/change-password'];
 
 function getSecret(): Uint8Array {
   const raw = process.env.JWT_SECRET;
@@ -40,5 +40,10 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/courses/:path*', '/bookings/:path*']
+  matcher: [
+    '/admin/:path*',
+    '/courses/:path*',
+    '/bookings/:path*',
+    '/change-password'
+  ]
 };

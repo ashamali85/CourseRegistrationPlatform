@@ -20,12 +20,29 @@ export type SessionUser = {
   name: string;
   email: string;
   role: string;
+  mustChangePassword: boolean;
 };
 
-export type Role = 'ADMIN' | 'STUDENT';
+export type GuardOptions = {
+  /** Only the change-password page/action passes true. */
+  allowPendingPasswordChange?: boolean;
+};
 
 export async function hashPassword(plain: string) {
   return bcrypt.hash(plain, BCRYPT_ROUNDS);
+}
+
+export async function verifyPassword(plain: string, hash: string) {
+  return bcrypt.compare(plain, hash);
+}
+
+/**
+ * JWT `iat` is in whole seconds, so passwordChangedAt is truncated to the same
+ * granularity. Without this a token minted in the same second as the change
+ * would compare as older than it and be rejected immediately.
+ */
+export function passwordChangeStamp(): Date {
+  return new Date(Math.floor(Date.now() / 1000) * 1000);
 }
 
 function toSessionUser(user: {
@@ -33,8 +50,15 @@ function toSessionUser(user: {
   name: string;
   email: string;
   role: string;
+  mustChangePassword: boolean;
 }): SessionUser {
-  return { id: user.id, name: user.name, email: user.email, role: user.role };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword
+  };
 }
 
 /**
@@ -81,10 +105,10 @@ export async function clearSession() {
 }
 
 /**
- * Read the current session. The token carries ONLY the user id — role and
- * active status are looked up fresh from the database on every request, so
- * deactivating a user or changing their role takes effect immediately rather
- * than whenever their week-old token happens to expire.
+ * Read the current session. The token carries ONLY the user id — role, active
+ * status and the password-change flag are looked up fresh from the database on
+ * every request, so deactivating a user or forcing a password reset takes
+ * effect immediately rather than whenever their week-old token expires.
  */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
@@ -92,17 +116,26 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!token) return null;
 
   let userId: string;
+  let issuedAt: number | undefined;
   try {
     const { payload } = await jwtVerify(token, getJwtSecret());
     const sub = payload.sub;
     if (typeof sub !== 'string' || !sub) return null;
     userId = sub;
+    issuedAt = payload.iat;
   } catch {
     return null;
   }
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || !user.isActive) return null;
+
+  // Tokens issued before the last password change are dead. This is what makes
+  // "change your password" actually evict a leaked session on another device.
+  if (issuedAt !== undefined && issuedAt * 1000 < user.passwordChangedAt.getTime()) {
+    return null;
+  }
+
   return toSessionUser(user);
 }
 
@@ -111,14 +144,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
  * bounce obvious anonymous traffic; it is NOT the security boundary. Every page
  * and every server action calls this (or requireAdmin) itself.
  */
-export async function requireUser(): Promise<SessionUser> {
+export async function requireUser(opts: GuardOptions = {}): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) redirect('/login');
+  if (user.mustChangePassword && !opts.allowPendingPasswordChange) {
+    redirect('/change-password');
+  }
   return user;
 }
 
-export async function requireAdmin(): Promise<SessionUser> {
-  const user = await requireUser();
+export async function requireAdmin(opts: GuardOptions = {}): Promise<SessionUser> {
+  const user = await requireUser(opts);
   if (user.role !== 'ADMIN') redirect('/courses');
   return user;
 }
@@ -128,14 +164,17 @@ export async function requireAdmin(): Promise<SessionUser> {
  * returns a clean error to the form rather than a redirect the client may not
  * expect.
  */
-export async function requireUserAction(): Promise<SessionUser> {
+export async function requireUserAction(opts: GuardOptions = {}): Promise<SessionUser> {
   const user = await getSessionUser();
   if (!user) throw new Error('Your session has expired. Sign in again.');
+  if (user.mustChangePassword && !opts.allowPendingPasswordChange) {
+    throw new Error('Set a new password before continuing.');
+  }
   return user;
 }
 
-export async function requireAdminAction(): Promise<SessionUser> {
-  const user = await requireUserAction();
+export async function requireAdminAction(opts: GuardOptions = {}): Promise<SessionUser> {
+  const user = await requireUserAction(opts);
   if (user.role !== 'ADMIN') throw new Error('You do not have access to this action.');
   return user;
 }

@@ -26,6 +26,15 @@ model User {
   role         String  @default("STUDENT")
   isActive     Boolean @default(true)
 
+  // Set on seeded/reset accounts. While true the app refuses every page and
+  // every action except the password change itself.
+  mustChangePassword Boolean @default(false)
+
+  // Any session token issued before this instant is rejected, so changing a
+  // password signs out every other device. Truncated to whole seconds because
+  // the JWT `iat` claim has second granularity.
+  passwordChangedAt DateTime @default(now())
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

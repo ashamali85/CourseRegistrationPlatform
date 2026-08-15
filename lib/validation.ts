@@ -29,6 +29,21 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password.').max(200)
 });
 
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Enter your current password.').max(200),
+    newPassword: passwordSchema,
+    confirmPassword: z.string().min(1, 'Repeat the new password.').max(200)
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    message: 'The two passwords do not match.',
+    path: ['confirmPassword']
+  })
+  .refine((v) => v.newPassword !== v.currentPassword, {
+    message: 'Choose a password different from your current one.',
+    path: ['newPassword']
+  });
+
 export const courseSchema = z.object({
   title: z.string().trim().min(3, 'Give the course a title.').max(120),
   summary: z.string().trim().max(200, 'Keep the summary under 200 characters.').default(''),

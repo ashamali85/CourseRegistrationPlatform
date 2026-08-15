@@ -52,11 +52,33 @@ npm run dev
 | `DATABASE_URL` | Neon **pooled** connection. Used at runtime. |
 | `DIRECT_URL` | Neon **non-pooled**. Used by `prisma db push` / migrations. |
 | `JWT_SECRET` | Min 32 chars. Generate it yourself: `openssl rand -base64 48`. The app throws on boot if it is missing or short. |
-| `ADMIN_EMAIL` / `ADMIN_NAME` / `ADMIN_PASSWORD` | Seeds your admin account. Min 10 chars. |
+| `ADMIN_EMAIL` / `ADMIN_NAME` | Seeds your admin account. |
+| `ADMIN_PASSWORD` | **Optional.** Leave blank and the seed generates a temporary password, prints it once, and forces a change at first login. Min 10 chars if you do set one. |
 | `NEXT_PUBLIC_APP_TIMEZONE` | Optional, defaults to `Asia/Kuwait`. |
 
-The seed is idempotent and never resets an existing password. If the email
-already exists as a student it is promoted to ADMIN; otherwise it is created.
+### Admin credentials
+
+Leave `ADMIN_PASSWORD` blank. `npm run setup` generates a random 16-character
+password with `crypto.randomBytes`, prints it once to your terminal, and marks
+the account `mustChangePassword`:
+
+```
+================================================================
+  TEMPORARY ADMIN PASSWORD — shown once, not stored anywhere
+================================================================
+  Email:    you@example.com
+  Password: kJ2mX9pQr4vN8wLz
+================================================================
+```
+
+Sign in with it and the app redirects you to `/change-password` and refuses
+every other page and action until you set a real one. The generated password is
+never written to a file, so it cannot leak through git.
+
+The seed is idempotent and **never resets an existing password** — if the admin
+already exists it is left alone. Locked out? Run `npm run admin:reset`, which
+issues a fresh temporary password and invalidates every existing session for
+that account.
 
 ### Deploy
 
@@ -108,6 +130,15 @@ POST, so each one defends itself rather than trusting the page that rendered it.
   traffic cheaply. It is deliberately **not** the security boundary — it never
   reads roles. Every page calls `requireUser()`/`requireAdmin()` and every
   action calls `requireUserAction()`/`requireAdminAction()` itself.
+- A temporary password is gated at both layers: `requireUser()` redirects to
+  `/change-password` and `requireUserAction()` throws, so the flag cannot be
+  bypassed by POSTing to an action directly. Only the change-password page and
+  action pass `allowPendingPasswordChange`.
+- Changing a password bumps `passwordChangedAt`, and any token issued before
+  that instant is rejected — so it signs out every other device, which is what
+  you want if a temporary password was seen by someone else.
+- The current password is re-verified on change even though the user holds a
+  valid session, so a hijacked session cannot lock the real owner out.
 - Registration hard-codes `role: 'STUDENT'`. It never reads a role from the
   form, so `role=ADMIN` in a crafted POST does nothing. ADMIN exists only via
   the seed.
@@ -164,6 +195,8 @@ database** — do that first, since `db push` and the seed run as part of it.
 1. Email confirmations on booking and cancellation (Resend).
 2. Meeting links per booking (Zoom/Meet) — a nullable field on `AvailabilitySlot`.
 3. Recurring availability, so you set "Sun–Thu 6–8pm" once instead of per day.
+   Also: self-serve password reset by email, so students are not dependent on
+   you running a script.
 4. A cancellation cutoff (e.g. no cancelling within 24h).
 5. Payments (Stripe), with `Booking.status` gaining `PENDING_PAYMENT`.
 6. Per-user timezones — currently everything renders in `APP_TIMEZONE`.
