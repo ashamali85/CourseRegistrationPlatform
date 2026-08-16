@@ -121,65 +121,39 @@ route to the environment-variable one.
 
 ## Upgrading an existing database
 
-The schedule restructure is a **breaking schema change** — `AvailabilitySlot`
-moved from `courseId` to `courseDayId`, and `Course.durationMinutes` became
-`Course.sessionHours`. `prisma db push` will not drop columns holding data
-without being told to, and there is no prompt in CI, so the build fails.
+**Nothing to do. Just deploy.**
 
-There are two escape hatches, both read by `scripts/db-push.mjs`, both off by
-default, and both meant to be set for exactly one deploy:
+`scripts/db-push.mjs` runs `prisma/migrate-legacy.sql` before the schema push.
+That file is guarded entirely by checks on the database's current shape, so it
+is safe on every deploy forever:
 
-| Variable | Adds | Use when |
-|---|---|---|
-| `ALLOW_DATA_LOSS` | `--accept-data-loss` | Columns or tables holding data need to be **dropped** |
-| `ALLOW_DB_RESET` | `--force-reset` | A **new required column** is added to a table that already has rows |
+| Database state | What happens |
+|---|---|
+| Fresh / empty | No-op |
+| Already migrated | No-op |
+| Legacy availability model | Cleaned up once, automatically |
 
-**This particular upgrade needs `ALLOW_DB_RESET`.** `AvailabilitySlot` gains a
-required `courseDayId`, and if the table already has rows Prisma has no value to
-backfill them with — `--accept-data-loss` cannot help, because nothing is being
-dropped. You will see:
+On a legacy database it removes the orphaned `AvailabilitySlot` rows (which is
+what blocks the new required `courseDayId`), drops the old
+`AvailabilitySlot.courseId`, and drops `Course.durationMinutes`. `prisma db
+push` is then left with only additions to make, so it needs no destructive
+flags at all.
 
-```
-Added the required column `courseDayId` to the `AvailabilitySlot` table
-without a default value. There are N rows in this table.
-```
+**Your users, admin account and courses survive.** Old availability slots and
+any bookings attached to them do not — a slot from the old model has no day to
+belong to, so there is nothing to migrate it into. Rebuild the schedule from
+each course's Schedule page.
 
-Set `ALLOW_DB_RESET` = `true` in Vercel, redeploy, then **delete it**.
+Verified against PostgreSQL 18 by reproducing the legacy schema with rows in
+it, running the migration, then confirming a required `courseDayId` could be
+added with no flags; that re-running it is a no-op; and that it does not touch
+live slots once the new schema is in place.
 
-Paste the value as `true` with **no quotes**. Vercel treats whatever is in the
-field as the literal value, so `"true"` arrives with the quotes attached. The
-build log now prints what it actually received at the top of the db-push step:
+### The emergency flags
 
-```
-[db-push] ALLOW_DB_RESET="true" -> ON
-[db-push] ALLOW_DB_RESET=<not set>
-```
-
-If it says `<not set>` or `-> off`, the variable never reached the build —
-check it is ticked for the environment you are deploying (Production vs
-Preview) and trigger a **new** deployment rather than retrying the old one.
-
-### Alternative: clear the table instead
-
-The flag only exists because the table has rows. Emptying it removes the
-problem entirely — with zero rows, a required column can be added with no flag
-and nothing else is lost. In the Neon dashboard, open **SQL Editor** and run:
-
-```sql
-DELETE FROM "AvailabilitySlot";
-```
-
-Then redeploy with no migration variables set at all. This keeps your admin
-account and any registered users, which `--force-reset` would destroy.
-
-`--force-reset` drops the whole schema and rebuilds it: every user, course,
-day, slot and booking is erased. The seed then recreates your admin account and
-the two sample courses. Before you do this, make sure `ADMIN_PASSWORD` is set
-in Vercel — otherwise the seed generates a temporary one and prints it in the
-build log, and you will have to go dig it out of the deployment output.
-
-Leaving either variable set is the real risk: a future schema edit would then
-wipe live bookings without stopping to complain.
+`ALLOW_DATA_LOSS` and `ALLOW_DB_RESET` still exist but **you should not need
+them**. `ALLOW_DB_RESET` in particular drops every account and booking. If a
+push fails, read the log rather than reaching for it.
 
 ---
 

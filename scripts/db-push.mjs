@@ -1,26 +1,19 @@
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 /**
- * `prisma db push` refuses destructive changes, and in CI there is no prompt to
- * confirm them, so a breaking schema change fails the build. Two escape
- * hatches, both off by default and both meant to be removed after one deploy.
+ * Push the schema, healing the legacy availability model on the way.
  *
- *   ALLOW_DATA_LOSS=true  -> --accept-data-loss
- *     Permits DROPPING columns/tables that hold data.
+ * Step 1 runs prisma/migrate-legacy.sql, which is guarded entirely by checks on
+ * the database's current shape: a no-op on a fresh or already-migrated
+ * database, and on a legacy one it removes exactly what blocks the new schema.
  *
- *   ALLOW_DB_RESET=true   -> --force-reset
- *     DROPS THE ENTIRE SCHEMA and rebuilds it. Every user, course, day, slot
- *     and booking is destroyed. Needed when a NEW REQUIRED column is added to
- *     a table that already has rows: --accept-data-loss cannot help there,
- *     because Prisma has no value to backfill the existing rows with.
+ * Step 2 then runs `prisma db push` with no destructive flags, because after
+ * step 1 there is nothing destructive left for it to do.
  *
- * After a reset the seed re-creates your admin account. If ADMIN_PASSWORD is
- * not set, it generates a temporary one and prints it in this build log.
- */
-/**
- * Tolerant on purpose. Pasting `"true"` into the Vercel dashboard keeps the
- * quotes as part of the value, and a strict === 'true' silently reads that as
- * off — which looks exactly like the variable never being set at all.
+ * The two override variables remain for emergencies only:
+ *   ALLOW_DATA_LOSS=true -> --accept-data-loss
+ *   ALLOW_DB_RESET=true  -> --force-reset (DROPS EVERYTHING)
  */
 const truthy = (v) => {
   if (typeof v !== 'string') return false;
@@ -28,16 +21,40 @@ const truthy = (v) => {
   return cleaned === 'true' || cleaned === '1' || cleaned === 'yes' || cleaned === 'on';
 };
 
-const show = (name) => {
-  const raw = process.env[name];
-  if (raw === undefined) return `${name}=<not set>`;
-  return `${name}=${JSON.stringify(raw)}${truthy(raw) ? ' -> ON' : ' -> off'}`;
+const npx = (args, label) => {
+  const run = spawnSync('npx', args, {
+    stdio: 'inherit',
+    shell: process.platform === 'win32'
+  });
+  if (run.status !== 0) console.error(`[db-push] ${label} exited with ${run.status}`);
+  return run.status === 0;
 };
 
-// Neither of these is a secret, so printing them makes a misconfiguration
-// obvious in the build log instead of looking like the flag was ignored.
-console.log('[db-push]', show('ALLOW_DB_RESET'));
-console.log('[db-push]', show('ALLOW_DATA_LOSS'));
+// DDL wants the non-pooled endpoint; Neon's pooled host is PgBouncer.
+const migrationUrl = process.env.DIRECT_URL?.trim() || process.env.DATABASE_URL?.trim();
+
+const LEGACY_SQL = 'prisma/migrate-legacy.sql';
+
+if (!migrationUrl) {
+  console.error('[db-push] Neither DIRECT_URL nor DATABASE_URL is set.');
+  process.exit(1);
+}
+
+if (existsSync(LEGACY_SQL)) {
+  console.log('[db-push] Checking for the legacy availability schema…');
+  const ok = npx(
+    ['prisma', 'db', 'execute', '--url', migrationUrl, '--file', LEGACY_SQL],
+    'legacy migration'
+  );
+  if (!ok) {
+    console.error('[db-push] The legacy check failed. This is usually a connection');
+    console.error('[db-push] problem rather than a schema one — verify DIRECT_URL.');
+    process.exit(1);
+  }
+  console.log('[db-push] Legacy check complete.');
+} else {
+  console.warn(`[db-push] ${LEGACY_SQL} not found — skipping the legacy check.`);
+}
 
 const reset = truthy(process.env.ALLOW_DB_RESET);
 const dataLoss = truthy(process.env.ALLOW_DATA_LOSS);
@@ -50,33 +67,22 @@ if (reset) {
   console.warn('='.repeat(64));
   console.warn('  ALLOW_DB_RESET is set — DROPPING AND REBUILDING THE SCHEMA.');
   console.warn('  All users, courses, schedules and bookings are being erased.');
-  console.warn('  REMOVE this variable from your environment after this deploy.');
+  console.warn('  You should not need this. Remove it and redeploy.');
   console.warn('='.repeat(64));
   console.warn('');
 } else if (dataLoss) {
   args.push('--accept-data-loss');
   console.warn('[db-push] ALLOW_DATA_LOSS is set — destructive changes permitted.');
-  console.warn('[db-push] Remove this variable after the deploy succeeds.');
 }
 
-const run = spawnSync('npx', args, {
-  stdio: 'inherit',
-  shell: process.platform === 'win32'
-});
-
-if (run.status !== 0) {
+if (!npx(args, 'db push')) {
   console.error('');
-  console.error('[db-push] failed.');
-  console.error('[db-push] "cannot be executed" / "required column ... without a default"');
-  console.error('[db-push] means existing rows block the change. Pre-launch, set');
-  console.error('[db-push] ALLOW_DB_RESET=true for ONE deploy, then remove it.');
-  console.error('[db-push]');
-  console.error('[db-push] If the two lines at the top of this step show');
-  console.error('[db-push] "<not set>" or "-> off", the variable never reached');
-  console.error('[db-push] the build. In Vercel: Settings -> Environment');
-  console.error('[db-push] Variables, value is exactly  true  with NO quotes,');
-  console.error('[db-push] ticked for the environment you are deploying, then');
-  console.error('[db-push] trigger a NEW deployment.');
+  console.error('[db-push] Schema push failed.');
+  console.error('[db-push] If it mentions a required column blocked by existing');
+  console.error('[db-push] rows, the legacy migration did not match your database.');
+  console.error('[db-push] Send the full log rather than setting ALLOW_DB_RESET —');
+  console.error('[db-push] that flag destroys every account and booking you have.');
+  process.exit(1);
 }
 
-process.exit(run.status ?? 1);
+process.exit(0);
