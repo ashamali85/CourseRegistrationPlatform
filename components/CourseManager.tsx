@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState, useState } from 'react';
+import Link from 'next/link';
 import {
   createCourseAction,
   updateCourseAction,
@@ -8,6 +9,7 @@ import {
   type ActionState
 } from '@/lib/actions/admin-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { SESSION_HOURS } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -16,9 +18,12 @@ export type AdminCourse = {
   title: string;
   summary: string;
   description: string;
-  durationMinutes: number;
+  sessionHours: number;
   isPublished: boolean;
   bookingCount: number;
+  dayCount: number;
+  firstDay: string | null;
+  lastDay: string | null;
 };
 
 function CourseFields({
@@ -67,18 +72,19 @@ function CourseFields({
       </div>
 
       <div className="field">
-        <label htmlFor={`duration-${course?.id ?? 'new'}`}>{d.admin.sessionLength}</label>
-        <input
-          id={`duration-${course?.id ?? 'new'}`}
-          name="durationMinutes"
-          type="number"
-          min={15}
-          max={480}
-          step={5}
-          defaultValue={course?.durationMinutes ?? 60}
-          required
-        />
-        {errors?.durationMinutes && <p className="field-error">{errors.durationMinutes}</p>}
+        <label htmlFor={`hours-${course?.id ?? 'new'}`}>{d.schedule.sessionLength}</label>
+        <select
+          id={`hours-${course?.id ?? 'new'}`}
+          name="sessionHours"
+          defaultValue={course?.sessionHours ?? 1}
+        >
+          {SESSION_HOURS.map((h) => (
+            <option key={h} value={h}>
+              {h} {h === 1 ? d.schedule.hour : d.schedule.hours}
+            </option>
+          ))}
+        </select>
+        {errors?.sessionHours && <p className="field-error">{errors.sessionHours}</p>}
       </div>
 
       <div className="checkbox-row field">
@@ -151,7 +157,12 @@ function CourseRow({ course }: { course: AdminCourse }) {
           </div>
           {course.summary && <p className="muted small mt-2">{course.summary}</p>}
           <p className="muted small mt-2">
-            {course.durationMinutes} {d.common.minutes} · {course.bookingCount}{' '}
+            {course.sessionHours}{' '}
+            {course.sessionHours === 1 ? d.schedule.hour : d.schedule.hours} ·{' '}
+            {course.dayCount > 0
+              ? `${course.dayCount} ${d.schedule.daysCount}`
+              : d.schedule.noSchedule}{' '}
+            · {course.bookingCount}{' '}
             {course.bookingCount === 1
               ? d.admin.confirmedBooking
               : d.admin.confirmedBookingPlural}
@@ -159,6 +170,9 @@ function CourseRow({ course }: { course: AdminCourse }) {
         </div>
 
         <div className="row">
+          <Link href={`/admin/courses/${course.id}/schedule`} className="btn btn-primary btn-sm">
+            {d.schedule.manageSchedule}
+          </Link>
           <button
             type="button"
             className="btn btn-ghost btn-sm"

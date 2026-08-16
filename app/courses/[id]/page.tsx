@@ -23,10 +23,12 @@ export default async function CourseDetailPage({
   // An unpublished course is a 404 for students even if they know the id.
   if (!course || (!course.isPublished && user.role !== 'ADMIN')) notFound();
 
+  // Slots now hang off this course's own days, so no cross-course filter is
+  // needed — the schedule the admin built IS the student's calendar.
   const slots = await prisma.availabilitySlot.findMany({
     where: {
       startsAt: { gte: startOfTodayUtc() },
-      OR: [{ courseId: null }, { courseId: course.id }]
+      courseDay: { courseId: course.id }
     },
     orderBy: { startsAt: 'asc' },
     include: {
@@ -63,7 +65,8 @@ export default async function CourseDetailPage({
                 {course.summary && <p className="muted mt-2">{course.summary}</p>}
               </div>
               <span className="pill pill-brand">
-                {course.durationMinutes} {d.common.minutes}
+                {course.sessionHours}{' '}
+                {course.sessionHours === 1 ? d.schedule.hour : d.schedule.hours}
               </span>
             </div>
 

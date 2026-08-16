@@ -24,6 +24,51 @@ export function zonedInputToUtc(
   return new Date(naive.getTime() - offsetMs);
 }
 
+export const SESSION_HOURS = [1, 2, 3] as const;
+export type SessionHours = (typeof SESSION_HOURS)[number];
+
+/**
+ * A CourseDay.date is a pure calendar-date KEY, not an instant: midnight UTC of
+ * the literal YYYY-MM-DD the admin clicked. It is deliberately NOT run through
+ * zonedInputToUtc — applying an offset to a date key is exactly how a schedule
+ * silently shifts by a day.
+ */
+export function dateKeyToUtc(dateStr: string): Date {
+  const value = new Date(`${dateStr}T00:00:00Z`);
+  if (Number.isNaN(value.getTime())) throw new Error('Invalid date.');
+  return value;
+}
+
+/** Inverse of dateKeyToUtc — read the key back as YYYY-MM-DD. */
+export function utcToDateKey(value: Date | string): string {
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+/** Today's date key in APP_TIMEZONE. */
+export function todayKey(timeZone: string = APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
+}
+
+/** Every date key from start to end inclusive. Used by range selection. */
+export function dateKeyRange(startKey: string, endKey: string): string[] {
+  const start = dateKeyToUtc(startKey);
+  const end = dateKeyToUtc(endKey);
+  const [from, to] = start <= end ? [start, end] : [end, start];
+
+  const out: string[] = [];
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    out.push(utcToDateKey(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
+}
+
 /** Start of "today" in APP_TIMEZONE, as a UTC instant. */
 export function startOfTodayUtc(timeZone: string = APP_TIMEZONE): Date {
   const today = new Intl.DateTimeFormat('en-CA', {

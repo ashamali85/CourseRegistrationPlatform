@@ -69,8 +69,10 @@ anything else until you set a real one.
 **6 — After changing it, delete `ADMIN_PASSWORD`** from Vercel. It is dead
 after the change, so it is just a stale secret sitting in your settings.
 
-Then: **Courses** → add one and tick Published → **Availability** → add a time
-slot. Register a second account with a different email to see the student side.
+Then: **Courses** → add one, choose a session length, tick Published → press
+**Schedule** on that course → pick the days on the calendar → **Save days** →
+set the times for each day. Register a second account with a different email to
+see the student side.
 
 ### If you leave ADMIN_PASSWORD blank
 
@@ -114,6 +116,24 @@ npm run dev
 `binaries.prisma.sh` — allow that host if you are behind a proxy.
 `npm run admin:reset` issues a fresh temporary password if you prefer the CLI
 route to the environment-variable one.
+
+---
+
+## Upgrading an existing database
+
+The schedule restructure is a **breaking schema change** — `AvailabilitySlot`
+moved from `courseId` to `courseDayId`, and `Course.durationMinutes` became
+`Course.sessionHours`. `prisma db push` will not drop columns holding data
+without being told to, and there is no prompt in CI, so the build fails.
+
+For **one** deploy, add `ALLOW_DATA_LOSS` = `true` to your Vercel environment
+variables, then delete it once the deploy succeeds. `scripts/db-push.mjs` reads
+it and adds `--accept-data-loss` only when it is set. Leaving it on permanently
+means a future schema edit could silently drop a column of real bookings, which
+is exactly the failure it exists to prevent.
+
+Any existing courses will keep their titles but lose their old standalone
+slots — rebuild the schedule from the course's Schedule page.
 
 ---
 
@@ -163,11 +183,32 @@ User ──┬── ADMIN   → /admin, /admin/courses, /admin/availability, /a
 Course ──< AvailabilitySlot >── Booking ──> User
 ```
 
-**AvailabilitySlot** is *your* time, not the course's. A slot with
-`courseId = null` is offered for every published course; a slot with a
-`courseId` is reserved for that one course. Either way, once someone books it,
-it is gone for every course — you cannot teach two sessions at once. `capacity`
-is seats per slot: 1 for one-to-one, higher for group sessions.
+Scheduling is **course → days → times**:
+
+1. **Course** — title, description, and a session length of 1, 2 or 3 hours
+   (`sessionHours`, default 1).
+2. **CourseDay** — a calendar date the course runs on. The admin picks these on
+   a calendar, either as a consecutive range (click first day, click last) or by
+   toggling individual days.
+3. **AvailabilitySlot** — a time on one of those days. Every day has its own
+   times, so Sunday can differ from Monday. `capacity` is seats per slot: 1 for
+   one-to-one, higher for group sessions.
+
+`CourseDay.date` is a pure date **key** — midnight UTC of the literal
+`YYYY-MM-DD`, never timezone-converted. Slot `startsAt`/`endsAt` are real
+instants and *are* converted. Mixing those two up is how a schedule silently
+shifts by a day, so they use separate helpers (`dateKeyToUtc` vs
+`zonedInputToUtc`) and separate formatters (`formatDateKey` forces UTC).
+
+**There is still only one of you.** Slots are course-scoped now, so nothing in
+the shape of the data stops two courses being scheduled for 10:00 the same
+Tuesday. `findClash` in `lib/actions/schedule-actions.ts` therefore checks new
+slots against every slot in the system, not just the current course's.
+
+**Copy to all days** takes one day's times and applies them to every other day
+of that course. Scheduling a week means setting Sunday once. Days that already
+have times are skipped rather than merged, and individual times that would
+clash with another course are skipped rather than failing the whole operation.
 
 **Booking** carries a sequential human reference (`BK-000001`) from the
 `Counter` table.
@@ -266,7 +307,9 @@ and direct URLs being swapped.
 
 1. Email confirmations on booking and cancellation (Resend).
 2. Meeting links per booking (Zoom/Meet) — a nullable field on `AvailabilitySlot`.
-3. Recurring availability, so you set "Sun–Thu 6–8pm" once instead of per day.
+3. Recurring weekly patterns ("every Sun and Tue"), so a term-long course does
+   not need its days clicked individually. Copy-to-all-days covers the common
+   case for now.
    Also: self-serve password reset by email, so students are not dependent on
    you running a script.
 4. A cancellation cutoff (e.g. no cancelling within 24h).

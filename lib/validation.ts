@@ -64,34 +64,51 @@ export function courseSchema(d: Dictionary) {
     title: z.string().trim().min(3, d.validation.courseTitleRequired).max(120),
     summary: z.string().trim().max(200, d.validation.summaryTooLong).default(''),
     description: z.string().trim().max(4000, d.validation.tooLong).default(''),
-    durationMinutes: z.coerce
+    // Only 1, 2 or 3 hours are allowed. A plain min/max would let 2.5 through.
+    sessionHours: z.coerce
       .number()
-      .int(d.validation.durationWhole)
-      .min(15, d.validation.durationMin)
-      .max(480, d.validation.durationMax),
+      .int(d.validation.sessionHoursInvalid)
+      .refine((v) => v === 1 || v === 2 || v === 3, d.validation.sessionHoursInvalid),
     isPublished: z.coerce.boolean().default(false)
   });
 }
 
-export function slotSchema(d: Dictionary) {
-  return z
-    .object({
-      date: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, d.validation.pickDate),
-      startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickStart),
-      endTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickEnd),
-      capacity: z.coerce
-        .number()
-        .int()
-        .min(1, d.validation.capacityMin)
-        .max(100, d.validation.capacityMax),
-      note: z.string().trim().max(200, d.validation.tooLong).default(''),
-      // '' means "open to any published course"
-      courseId: z.string().trim().max(40).default('')
-    })
-    .refine((v) => v.endTime > v.startTime, {
-      message: d.validation.endAfterStart,
-      path: ['endTime']
-    });
+const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * The schedule calendar posts its selection as a comma-separated list of date
+ * keys. Capped at 366 so one request cannot create thousands of rows.
+ */
+export function courseDaysSchema(d: Dictionary) {
+  return z.object({
+    courseId: z.string().trim().cuid(d.errors.unknownCourse),
+    dates: z
+      .string()
+      .trim()
+      .transform((v) => (v ? v.split(',').map((x) => x.trim()).filter(Boolean) : []))
+      .pipe(
+        z
+          .array(z.string().regex(DATE_KEY, d.validation.pickDate))
+          .max(366, d.validation.tooManyDays)
+      )
+  });
+}
+
+export function daySlotSchema(d: Dictionary) {
+  return z.object({
+    courseDayId: z.string().trim().cuid(d.errors.unknownDay),
+    startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickStart),
+    sessionHours: z.coerce
+      .number()
+      .int(d.validation.sessionHoursInvalid)
+      .refine((v) => v === 1 || v === 2 || v === 3, d.validation.sessionHoursInvalid),
+    capacity: z.coerce
+      .number()
+      .int()
+      .min(1, d.validation.capacityMin)
+      .max(100, d.validation.capacityMax),
+    note: z.string().trim().max(200, d.validation.tooLong).default('')
+  });
 }
 
 export function bookSlotSchema(d: Dictionary) {

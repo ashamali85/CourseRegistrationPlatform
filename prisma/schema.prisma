@@ -46,31 +46,57 @@ model User {
 // A course you offer. Students only ever see isPublished = true.
 // ---------------------------------------------------------------------------
 model Course {
-  id              String  @id @default(cuid())
-  title           String
-  summary         String  @default("")
-  description     String  @default("")
-  durationMinutes Int     @default(60)
-  isPublished     Boolean @default(false)
+  id          String  @id @default(cuid())
+  title       String
+  summary     String  @default("")
+  description String  @default("")
+  isPublished Boolean @default(false)
+
+  // Default session length in hours: 1, 2 or 3. Enforced by zod, and used as
+  // the pre-selected duration when adding a time slot. Each slot still stores
+  // its own start/end, so a single day can deviate if you need it to.
+  sessionHours Int @default(1)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  slots    AvailabilitySlot[]
+  days     CourseDay[]
   bookings Booking[]
 
   @@index([isPublished])
 }
 
 // ---------------------------------------------------------------------------
-// A window of time you are available to teach.
+// One calendar date on which a course runs. The admin picks these first — as a
+// consecutive range or as individual days — and then fills in the times for
+// each one, so Sunday's schedule can differ from Monday's.
 //
-// courseId == null  -> open to ANY published course
-// courseId != null  -> reserved for that one course
+// `date` is a pure date KEY, stored as midnight UTC of the literal YYYY-MM-DD.
+// It is never timezone-converted, because shifting a date key by an offset is
+// how days silently drift by one. Real instants live on AvailabilitySlot.
+// ---------------------------------------------------------------------------
+model CourseDay {
+  id       String   @id @default(cuid())
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  date     DateTime
+
+  createdAt DateTime @default(now())
+
+  slots AvailabilitySlot[]
+
+  @@unique([courseId, date])
+  @@index([date])
+}
+
+// ---------------------------------------------------------------------------
+// A teaching window on a specific CourseDay.
 //
-// capacity is how many students may book this slot (1 = one-to-one).
-// Because there is a single instructor, a slot booked for one course is
-// consumed for every other course too — that is intentional.
+// capacity is how many students may book it (1 = one-to-one).
+//
+// Slots are course-scoped now, but there is still only ONE of you, so slot
+// creation checks for overlap across EVERY course — not just this one.
+// Without that check two courses could both be scheduled for 10:00 Tuesday.
 // ---------------------------------------------------------------------------
 model AvailabilitySlot {
   id       String   @id @default(cuid())
@@ -79,8 +105,8 @@ model AvailabilitySlot {
   capacity Int      @default(1)
   note     String   @default("")
 
-  courseId String?
-  course   Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseDayId String
+  courseDay   CourseDay @relation(fields: [courseDayId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -88,7 +114,7 @@ model AvailabilitySlot {
   bookings Booking[]
 
   @@index([startsAt])
-  @@index([courseId])
+  @@index([courseDayId])
 }
 
 // ---------------------------------------------------------------------------

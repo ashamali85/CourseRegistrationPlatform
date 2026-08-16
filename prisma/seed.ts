@@ -117,7 +117,7 @@ async function main() {
           summary: 'HTML, CSS and JavaScript fundamentals in one session.',
           description:
             'A one-to-one session covering how the web works, the structure of a page, styling basics, and your first piece of interactive JavaScript.\n\nBring a laptop with a code editor installed.',
-          durationMinutes: 60,
+          sessionHours: 1,
           isPublished: true
         },
         {
@@ -125,7 +125,7 @@ async function main() {
           summary: 'Tables, relationships and your first queries.',
           description:
             'Understand what a relational database is, how tables relate to each other, and how to write SELECT, INSERT and JOIN queries with confidence.',
-          durationMinutes: 90,
+          sessionHours: 2,
           isPublished: true
         }
       ]

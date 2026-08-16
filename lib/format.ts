@@ -49,6 +49,32 @@ export function dayKey(value: Date | string): string {
   }).format(new Date(value));
 }
 
+/**
+ * Format a CourseDay.date. Forced to UTC because the value is a date key, not
+ * an instant — formatting it in APP_TIMEZONE would render the wrong day.
+ */
+export function formatDateKey(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(intlTag(locale), {
+    timeZone: 'UTC',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date(value));
+}
+
+export function formatDateKeyShort(
+  value: Date | string,
+  locale: Locale = DEFAULT_LOCALE
+): string {
+  return new Intl.DateTimeFormat(intlTag(locale), {
+    timeZone: 'UTC',
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short'
+  }).format(new Date(value));
+}
+
 export function minutesBetween(a: Date | string, b: Date | string): number {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
 }

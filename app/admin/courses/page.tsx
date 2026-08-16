@@ -13,7 +13,8 @@ export default async function AdminCoursesPage() {
   const courses = await prisma.course.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      _count: { select: { bookings: { where: { status: 'CONFIRMED' } } } }
+      _count: { select: { bookings: { where: { status: 'CONFIRMED' } }, days: true } },
+      days: { orderBy: { date: 'asc' }, select: { date: true } }
     }
   });
 
@@ -22,9 +23,12 @@ export default async function AdminCoursesPage() {
     title: c.title,
     summary: c.summary,
     description: c.description,
-    durationMinutes: c.durationMinutes,
+    sessionHours: c.sessionHours,
     isPublished: c.isPublished,
-    bookingCount: c._count.bookings
+    bookingCount: c._count.bookings,
+    dayCount: c._count.days,
+    firstDay: c.days[0]?.date.toISOString() ?? null,
+    lastDay: c.days[c.days.length - 1]?.date.toISOString() ?? null
   }));
 
   return (

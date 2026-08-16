@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
-import { startOfTodayUtc } from '@/lib/time';
 import { getT } from '@/lib/locale';
+import { startOfTodayUtc } from '@/lib/time';
 import TopBar from '@/components/TopBar';
 
 export const dynamic = 'force-dynamic';
@@ -15,28 +15,22 @@ export default async function CoursesPage() {
   // Students only ever see published courses.
   const courses = await prisma.course.findMany({
     where: { isPublished: true },
-    orderBy: { title: 'asc' }
+    orderBy: { title: 'asc' },
+    include: {
+      days: {
+        where: { slots: { some: { startsAt: { gte: now } } } },
+        select: {
+          slots: {
+            where: { startsAt: { gte: now } },
+            select: {
+              capacity: true,
+              _count: { select: { bookings: { where: { status: 'CONFIRMED' } } } }
+            }
+          }
+        }
+      }
+    }
   });
-
-  // Count upcoming slots open to each course (its own + the "any course" ones).
-  const openSlots = await prisma.availabilitySlot.findMany({
-    where: { startsAt: { gte: now } },
-    select: { id: true, courseId: true, capacity: true }
-  });
-
-  const bookedCounts = await prisma.booking.groupBy({
-    by: ['slotId'],
-    where: { status: 'CONFIRMED' },
-    _count: { _all: true }
-  });
-  const bookedBySlot = new Map(bookedCounts.map((b) => [b.slotId, b._count._all]));
-
-  const availableFor = (courseId: string) =>
-    openSlots.filter(
-      (s) =>
-        (s.courseId === null || s.courseId === courseId) &&
-        (bookedBySlot.get(s.id) ?? 0) < s.capacity
-    ).length;
 
   return (
     <>
@@ -58,7 +52,12 @@ export default async function CoursesPage() {
           ) : (
             <div className="grid-cards">
               {courses.map((course) => {
-                const open = availableFor(course.id);
+                const open = course.days.reduce(
+                  (total, day) =>
+                    total +
+                    day.slots.filter((slot) => slot._count.bookings < slot.capacity).length,
+                  0
+                );
                 return (
                   <Link key={course.id} href={`/courses/${course.id}`} className="card">
                     <div className="row-between wrap">
@@ -73,7 +72,8 @@ export default async function CoursesPage() {
                     </div>
                     {course.summary && <p className="muted small mt-2">{course.summary}</p>}
                     <p className="muted small mt-4">
-                      {course.durationMinutes} {d.courses.minuteSession}
+                      {course.sessionHours}{' '}
+                      {course.sessionHours === 1 ? d.schedule.hour : d.schedule.hours}
                     </p>
                   </Link>
                 );
