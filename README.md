@@ -327,13 +327,28 @@ POST, so each one defends itself rather than trusting the page that rendered it.
 
 ---
 
+## Typechecking without a Prisma client
+
+`prisma generate` needs network access to `binaries.prisma.sh`. Where that is
+unavailable, `npm run typecheck:offline` parses `prisma/schema.prisma` and
+generates a **typed** stand-in for the client, then runs `tsc`.
+
+The typing matters. Stubbing every model as `any` type-checks clean and then
+fails the real build, because `any` happily accepts a field that a schema
+change has removed — that is how `slot.courseId` survived the move to
+`courseDay` and broke a deploy. Relations are emitted as non-optional, so
+reading one without `include` passes, while reading a field that does not exist
+on the model at all is a hard error.
+
+It is a development aid only, ignored by git and never part of the build.
+
 ## Verified so far
 
-Dependencies installed and `tsc --noEmit` run against this tree. Typechecking
-used a stubbed Prisma client because the sandbox could not reach
-`binaries.prisma.sh`; the app layer compiles clean, and the remaining errors
-were all missing-generated-client artifacts that resolve when Vercel runs
-`prisma generate`. **the build has not been run against a real
+Dependencies installed and `npm run typecheck:offline` run against this tree
+with model fields typed from the schema — zero errors. The legacy migration was
+tested against a real PostgreSQL 18 instance seeded with the old schema.
+
+The build itself runs on Vercel, so treat a deploy as the final check. **the build has not been run against a real
 database** — your first Vercel deploy is that test. If it fails, the build log
 will say why; the usual causes are a missing environment variable or the pooled
 and direct URLs being swapped.

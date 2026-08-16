@@ -14,7 +14,8 @@
     "setup": "node scripts/clean-stale.mjs && prisma generate && node scripts/db-push.mjs && tsx prisma/seed.ts",
     "postinstall": "prisma generate",
     "admin:reset": "tsx prisma/reset-admin.ts",
-    "clean": "node scripts/clean-stale.mjs"
+    "clean": "node scripts/clean-stale.mjs",
+    "typecheck:offline": "node scripts/gen-prisma-stub.mjs && tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

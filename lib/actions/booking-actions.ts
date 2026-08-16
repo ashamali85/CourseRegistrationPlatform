@@ -39,7 +39,12 @@ export async function bookSlotAction(
   try {
     const booking = await prisma.$transaction(
       async (tx) => {
-        const slot = await tx.availabilitySlot.findUnique({ where: { id: slotId } });
+        // A slot reaches its course through its day, so the day is needed to
+        // verify ownership below.
+        const slot = await tx.availabilitySlot.findUnique({
+          where: { id: slotId },
+          include: { courseDay: true }
+        });
         if (!slot) throw new BookingError(d.errors.slotUnavailable);
         if (slot.startsAt.getTime() <= Date.now()) {
           throw new BookingError(d.errors.slotStarted);
@@ -51,7 +56,10 @@ export async function bookSlotAction(
         if (!course || !course.isPublished) {
           throw new BookingError(d.errors.courseNotOpen);
         }
-        if (slot.courseId && slot.courseId !== course.id) {
+        // Every slot now belongs to exactly one course. slotId and courseId
+        // arrive as separate form fields, so without this a student could pair
+        // one course's slot with another course's id.
+        if (slot.courseDay.courseId !== course.id) {
           throw new BookingError(d.errors.slotReservedOther);
         }
 
