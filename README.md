@@ -225,9 +225,20 @@ Scheduling is **course → days → times**:
 2. **CourseDay** — a calendar date the course runs on. The admin picks these on
    a calendar, either as a consecutive range (click first day, click last) or by
    toggling individual days.
-3. **AvailabilitySlot** — a time on one of those days. Every day has its own
-   times, so Sunday can differ from Monday. `capacity` is seats per slot: 1 for
-   one-to-one, higher for group sessions.
+3. **AvailabilitySlot** — a time on one of those days, placed on a
+   timetable grid: hours down the side, days across, sessions as blocks at
+   their exact time. Every day has its own times, so Sunday can differ from
+   Monday. `capacity` is seats per slot: 1 for one-to-one, higher for groups.
+
+The teaching window is **20:00–24:00**, giving four one-hour starts a day.
+`WORK_DAY_START_HOUR` and `WORK_DAY_END_HOUR` in `lib/time.ts` are the single
+source for it — the grid rows, the validation and the available start times all
+derive from those two numbers. A 2- or 3-hour session simply occupies more rows
+and cannot start late enough to run past midnight.
+
+Both calendars render **LTR and Sunday-first in every language**. A timetable
+is not a paragraph: mirroring it puts the first weekday on the right, which
+reads as breakage rather than localisation. Day names stay translated.
 
 `CourseDay.date` is a pure date **key** — midnight UTC of the literal
 `YYYY-MM-DD`, never timezone-converted. Slot `startsAt`/`endsAt` are real

@@ -28,8 +28,11 @@ export default function SlotCalendar({
   const { locale, d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(bookSlotAction, {});
 
-  const weekStart = d.calendar.weekStart;
-  const weekdays = useMemo(() => orderedWeekdays(d), [d]);
+  // The calendar is rendered LTR and Sunday-first in every locale — a
+  // timetable is not a paragraph, and mirroring it moves the first weekday to
+  // the right, which reads as a bug rather than as localisation.
+  const weekStart = 0;
+  const weekdays = useMemo(() => orderedWeekdays(d, weekStart), [d]);
 
   // Bucket slots by calendar day so the grid can show which days have anything.
   const byDay = useMemo(() => {
@@ -95,14 +98,14 @@ export default function SlotCalendar({
 
   return (
     <div className="stack">
-      <div className="calendar">
+      <div className="calendar" dir="ltr">
         <div className="calendar-head">
           {/* "Previous" sits on the right in RTL. The glyph is mirrored in CSS
               rather than swapping the handlers, so the DOM order stays correct
               for screen readers and keyboard tabbing. */}
           <button
             type="button"
-            className="btn btn-ghost btn-sm calendar-nav-prev"
+            className="calendar-nav"
             onClick={() => shiftMonth(-1)}
             aria-label={d.calendar.prevMonth}
           >
@@ -113,7 +116,7 @@ export default function SlotCalendar({
           </span>
           <button
             type="button"
-            className="btn btn-ghost btn-sm calendar-nav-next"
+            className="calendar-nav"
             onClick={() => shiftMonth(1)}
             aria-label={d.calendar.nextMonth}
           >

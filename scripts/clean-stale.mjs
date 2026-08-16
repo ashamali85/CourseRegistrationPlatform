@@ -17,7 +17,10 @@ import { existsSync, rmSync, statSync } from 'node:fs';
 const STALE_PATHS = [
   // Replaced by ScheduleCalendar + DayScheduleEditor when availability moved
   // from standalone slots to the course -> day -> time model.
-  'components/AvailabilityManager.tsx'
+  'components/AvailabilityManager.tsx',
+
+  // Replaced by WeekScheduleGrid when the per-day forms became a timetable.
+  'components/DayScheduleEditor.tsx'
 ];
 
 let removed = 0;

@@ -164,50 +164,124 @@ th { background: var(--surface-2); font-weight: 700; color: var(--ink-soft); fon
 tr:last-child td { border-bottom: none; }
 
 /* ---------------------------------------------------------------- calendar */
-.calendar { border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); padding: 18px; }
-.calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 10px; }
-.calendar-month { font-weight: 800; font-size: 1.05rem; }
-.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.calendar-dow { text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; padding-bottom: 6px; }
+/* Capped width — a 7-column grid stretched across a 1120px container makes
+   each day an enormous square. Sized for readability, not for the container. */
+.calendar {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 14px;
+  max-width: 340px;
+  /* A calendar reads left-to-right in every locale; mirroring it puts the
+     first day of the week on the right and looks broken. */
+  direction: ltr;
+}
+.calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+.calendar-month { font-weight: 700; font-size: .92rem; }
+.calendar-nav {
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+  width: 26px; height: 26px; border-radius: 8px; cursor: pointer;
+  font-family: inherit; font-size: .8rem; line-height: 1; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.calendar-nav:hover { background: var(--surface-2); color: var(--brand); }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.calendar-dow {
+  text-align: center; font-size: .62rem; font-weight: 700; color: var(--ink-soft);
+  text-transform: uppercase; letter-spacing: .03em; padding-bottom: 4px;
+}
 .calendar-day {
-  aspect-ratio: 1 / 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3px;
-  border-radius: var(--radius-sm); border: 1px solid transparent;
+  height: 34px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  border-radius: 8px; border: 1px solid transparent;
   background: var(--surface-2); color: var(--ink-soft);
-  font-size: 0.9rem; font-weight: 600; font-family: inherit;
-  cursor: default; padding: 0;
+  font-size: .78rem; font-weight: 600; font-family: inherit;
+  cursor: default; padding: 0; transition: background .12s ease;
 }
 .calendar-day.is-empty { background: transparent; }
 .calendar-day.has-slots { background: var(--brand-tint); color: var(--brand); border-color: rgba(10,61,145,.18); cursor: pointer; }
 .calendar-day.has-slots:hover { background: #dfeaff; }
-.calendar-day.is-selected { background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%); color: #fff; border-color: transparent; }
-.calendar-day.is-today { box-shadow: inset 0 0 0 2px var(--brand-2); }
-.calendar-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: 0.75; }
+.calendar-day.is-today { box-shadow: inset 0 0 0 1.5px var(--brand-2); }
+.calendar-dot { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .75; }
 
-/* ------------------------------------------------- admin schedule picker */
+/* --------------------------------------------- admin day picker states */
 .calendar-day.is-pickable { cursor: pointer; background: var(--surface-2); color: var(--ink); }
 .calendar-day.is-pickable:hover { background: var(--brand-tint); }
-.calendar-day.is-past { opacity: .35; cursor: not-allowed; }
+.calendar-day.is-past { opacity: .3; cursor: not-allowed; }
 .calendar-day.in-preview { background: var(--brand-tint); color: var(--brand); border-color: rgba(10,61,145,.3); }
-.calendar-day.is-anchor { background: var(--brand-2); color: #fff; }
-.calendar-day.is-locked { box-shadow: inset 0 0 0 2px var(--ok); }
-.calendar-lock { font-size: .7rem; line-height: 1; }
 
-.chip-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.chip { font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px;
-  background: var(--brand-tint); color: var(--brand); border: 1px solid rgba(10,61,145,.15); }
+/* Declared last, and doubled up for specificity, so a selected day always
+   wins over .is-pickable / .in-preview no matter the source order. */
+.calendar-day.is-selected.is-selected {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  color: #fff; border-color: transparent; font-weight: 800;
+  box-shadow: 0 3px 10px rgba(10,46,102,.22);
+}
+.calendar-day.is-anchor.is-anchor { background: var(--brand-2); color: #fff; border-color: transparent; }
+.calendar-day.is-locked.is-locked { box-shadow: inset 0 0 0 2px var(--ok); }
+.calendar-lock { font-size: .6rem; line-height: 1; }
+
+.chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip {
+  font-size: .72rem; font-weight: 600; padding: 3px 9px; border-radius: 999px;
+  background: var(--brand-tint); color: var(--brand); border: 1px solid rgba(10,61,145,.15);
+}
 .chip-locked { background: var(--ok-tint); color: var(--ok); border-color: rgba(18,128,92,.25); }
 
-.time-form { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)) auto;
-  gap: 10px; align-items: end; }
-@media (max-width: 700px) { .time-form { grid-template-columns: 1fr 1fr; } }
+/* ------------------------------------------------- timetable (Teams-style) */
+.grid-controls { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+.inline-field { display: flex; align-items: center; gap: 8px; margin: 0; }
+.inline-field span { font-size: .82rem; font-weight: 600; color: var(--ink-soft); white-space: nowrap; }
+.inline-field select, .inline-field input { width: auto; min-width: 88px; padding: 7px 10px; font-size: .85rem; }
 
-.time-list { display: flex; flex-wrap: wrap; gap: 8px; }
-.time-chip { display: flex; align-items: center; gap: 8px; padding: 7px 10px;
-  border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-2); }
-.time-chip-time { font-weight: 700; font-size: .9rem; }
+.tt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
+.tt-scroll.is-pending { opacity: .6; pointer-events: none; }
+.tt-grid { display: grid; grid-auto-rows: 56px; min-width: max-content; }
 
-.slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.tt-corner { border-bottom: 1px solid var(--line); background: var(--surface-2); }
+.tt-day-head {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  padding: 7px 6px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line);
+  background: var(--surface-2); grid-row: 1;
+}
+.tt-weekday { font-size: .68rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
+.tt-date { font-size: .82rem; font-weight: 700; color: var(--ink); }
+.tt-copy {
+  margin-top: 3px; font-family: inherit; font-size: .6rem; font-weight: 700;
+  padding: 2px 7px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(10,61,145,.2); background: var(--brand-tint); color: var(--brand);
+}
+.tt-copy:hover { background: #dfeaff; }
+
+.tt-row {
+  grid-column: 1; display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 4px 8px 0 0; font-size: .7rem; font-weight: 700; color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+}
+
+.tt-empty {
+  border: none; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line);
+  background: transparent; cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; justify-content: center;
+  color: transparent; transition: background .12s ease, color .12s ease;
+}
+.tt-empty:hover { background: var(--brand-tint); color: var(--brand); }
+.tt-plus { font-size: 1.05rem; font-weight: 700; line-height: 1; }
+
+.tt-slot {
+  margin: 2px; border-radius: 8px; cursor: pointer; font-family: inherit;
+  border: 1px solid rgba(10,61,145,.22);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
+  color: #fff; display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: center; gap: 2px; padding: 6px 9px;
+  text-align: left; overflow: hidden;
+}
+.tt-slot:hover { filter: brightness(1.07); }
+.tt-slot.is-full { background: linear-gradient(135deg, #b7791f 0%, #d69e2e 100%); }
+.tt-slot-time { font-size: .74rem; font-weight: 800; letter-spacing: .01em; }
+.tt-slot-meta { font-size: .66rem; font-weight: 600; opacity: .88; }
+
+.slot-list {.slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .slot-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface-2); }
 .slot-card.is-full { opacity: 0.6; }
 .slot-time { font-weight: 800; font-size: 0.98rem; }
@@ -219,10 +293,6 @@ tr:last-child td { border-bottom: none; }
 /* Latin-only strings (emails, references, times) inside an RTL paragraph get
    their punctuation reordered by the bidi algorithm unless isolated. */
 .ltr-text { direction: ltr; unicode-bidi: isolate; text-align: start; }
-
-/* The month arrows point at "previous" and "next", not left and right. */
-body.is-rtl .calendar-nav-prev,
-body.is-rtl .calendar-nav-next { transform: scaleX(-1); }
 
 /* Date and time inputs stay LTR — the browser widget is built that way. */
 body.is-rtl input[type='date'],

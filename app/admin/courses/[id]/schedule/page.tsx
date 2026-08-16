@@ -3,11 +3,12 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getT } from '@/lib/locale';
-import { utcToDateKey, todayKey, dateKeyToUtc } from '@/lib/time';
+import { utcToDateKey, todayKey, dateKeyToUtc, hourInAppTz } from '@/lib/time';
+import { formatWeekday, formatDayMonth } from '@/lib/format';
 import { APP_TIMEZONE } from '@/lib/env';
 import TopBar from '@/components/TopBar';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
-import DayScheduleEditor, { type ScheduleDay } from '@/components/DayScheduleEditor';
+import WeekScheduleGrid, { type GridDay } from '@/components/WeekScheduleGrid';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function CourseSchedulePage({
   params: Promise<{ id: string }>;
 }) {
   const admin = await requireAdmin();
-  const { d } = await getT();
+  const { locale, d } = await getT();
   const { id } = await params;
 
   const course = await prisma.course.findUnique({ where: { id } });
@@ -53,18 +54,25 @@ export default async function CourseSchedulePage({
     .filter((day) => day.slots.some((slot) => slot._count.bookings > 0))
     .map((day) => utcToDateKey(day.date));
 
-  const scheduleDays: ScheduleDay[] = days.map((day) => ({
-    id: day.id,
-    date: day.date.toISOString(),
-    slots: day.slots.map((slot) => ({
-      id: slot.id,
-      startsAt: slot.startsAt.toISOString(),
-      endsAt: slot.endsAt.toISOString(),
-      capacity: slot.capacity,
-      booked: slot._count.bookings,
-      note: slot.note
-    }))
-  }));
+  // Hours and labels are resolved here, in APP_TIMEZONE, so the grid does no
+  // timezone maths and cannot drift between server render and hydration.
+  const gridDays: GridDay[] = days.map((day) => {
+    return {
+      id: day.id,
+      weekday: formatWeekday(day.date, locale),
+      label: formatDayMonth(day.date, locale),
+      slots: day.slots.map((slot) => ({
+        id: slot.id,
+        startHour: hourInAppTz(slot.startsAt),
+        spanHours: Math.max(
+          1,
+          Math.round((slot.endsAt.getTime() - slot.startsAt.getTime()) / 3600000)
+        ),
+        capacity: slot.capacity,
+        booked: slot._count.bookings
+      }))
+    };
+  });
 
   return (
     <>
@@ -93,14 +101,7 @@ export default async function CourseSchedulePage({
               lockedDates={lockedDates}
             />
 
-            <div className="section-title mt-6">
-              <h2>{d.schedule.setTimes}</h2>
-            </div>
-
-            <DayScheduleEditor
-              days={scheduleDays}
-              defaultHours={course.sessionHours}
-            />
+            <WeekScheduleGrid days={gridDays} defaultHours={course.sessionHours} />
           </div>
         </div>
       </div>

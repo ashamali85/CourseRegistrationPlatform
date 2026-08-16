@@ -36,8 +36,11 @@ export default function ScheduleCalendar({
   const [hovered, setHovered] = useState<string | null>(null);
 
   const today = todayKey();
-  const weekStart = d.calendar.weekStart;
-  const weekdays = useMemo(() => orderedWeekdays(d), [d]);
+  // The calendar is rendered LTR and Sunday-first in every locale — a
+  // timetable is not a paragraph, and mirroring it moves the first weekday to
+  // the right, which reads as a bug rather than as localisation.
+  const weekStart = 0;
+  const weekdays = useMemo(() => orderedWeekdays(d, weekStart), [d]);
 
   const start = new Date(`${today}T00:00:00Z`);
   const [viewYear, setViewYear] = useState(start.getUTCFullYear());
@@ -145,11 +148,11 @@ export default function ScheduleCalendar({
           : d.schedule.singleHint}
       </p>
 
-      <div className="calendar mt-4">
+      <div className="calendar mt-4" dir="ltr">
         <div className="calendar-head">
           <button
             type="button"
-            className="btn btn-ghost btn-sm calendar-nav-prev"
+            className="calendar-nav"
             onClick={() => shiftMonth(-1)}
             aria-label={d.calendar.prevMonth}
           >
@@ -160,7 +163,7 @@ export default function ScheduleCalendar({
           </span>
           <button
             type="button"
-            className="btn btn-ghost btn-sm calendar-nav-next"
+            className="calendar-nav"
             onClick={() => shiftMonth(1)}
             aria-label={d.calendar.nextMonth}
           >

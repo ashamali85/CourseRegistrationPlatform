@@ -156,7 +156,14 @@ const en = {
     to: 'to',
     daysCount: 'days',
     manageSchedule: 'Schedule',
-    noSchedule: 'No schedule'
+    noSchedule: 'No schedule',
+    workingHours: 'Sessions run 8 PM – 12 AM',
+    gridHint: 'Click an empty cell to add a session. Click a session to remove it.',
+    seatsPerSession: 'Seats per session',
+    booked: 'booked',
+    removeSession: 'Remove this session?',
+    noRoom: 'A {hours}h session cannot start then — it would run past midnight.',
+    occupied: 'That time is already taken.'
   },
   bookings: {
     title: 'My bookings',
@@ -298,7 +305,9 @@ const en = {
     notesTooLong: 'Keep your note under 500 characters.',
     tooLong: 'That value is too long.',
     sessionHoursInvalid: 'Session length must be 1, 2 or 3 hours.',
-    tooManyDays: 'You cannot schedule more than 366 days at once.'
+    tooManyDays: 'You cannot schedule more than 366 days at once.',
+    outsideWorkingHours: 'Sessions run between 8 PM and 12 AM.',
+    sessionExceedsDay: 'That session would run past midnight.'
   }
 };
 
@@ -435,7 +444,14 @@ const ar: Dictionary = {
     to: 'إلى',
     daysCount: 'يوم',
     manageSchedule: 'الجدول',
-    noSchedule: 'لا يوجد جدول'
+    noSchedule: 'لا يوجد جدول',
+    workingHours: 'الجلسات من ٨ مساءً حتى ١٢ منتصف الليل',
+    gridHint: 'اضغط على خانة فارغة لإضافة جلسة. اضغط على جلسة لإزالتها.',
+    seatsPerSession: 'المقاعد لكل جلسة',
+    booked: 'محجوز',
+    removeSession: 'هل تريد إزالة هذه الجلسة؟',
+    noRoom: 'لا يمكن أن تبدأ جلسة من {hours} ساعات في هذا الوقت — ستتجاوز منتصف الليل.',
+    occupied: 'هذا الوقت محجوز بالفعل.'
   },
   bookings: {
     title: 'حجوزاتي',
@@ -577,7 +593,9 @@ const ar: Dictionary = {
     notesTooLong: 'اجعل الملاحظة أقل من ٥٠٠ حرف.',
     tooLong: 'هذه القيمة طويلة جدًا.',
     sessionHoursInvalid: 'يجب أن تكون مدة الجلسة ١ أو ٢ أو ٣ ساعات.',
-    tooManyDays: 'لا يمكن جدولة أكثر من ٣٦٦ يومًا دفعة واحدة.'
+    tooManyDays: 'لا يمكن جدولة أكثر من ٣٦٦ يومًا دفعة واحدة.',
+    outsideWorkingHours: 'الجلسات تكون بين ٨ مساءً و١٢ منتصف الليل.',
+    sessionExceedsDay: 'هذه الجلسة ستتجاوز منتصف الليل.'
   }
 };
 
@@ -594,8 +612,12 @@ export function fill(template: string, values: Record<string, string | number>):
   );
 }
 
-/** Day-of-week labels rotated so index 0 is the locale's first weekday. */
-export function orderedWeekdays(d: Dictionary): string[] {
-  const start = d.calendar.weekStart;
+/**
+ * Day-of-week labels rotated so index 0 is the given first weekday.
+ * Defaults to the locale's own preference; the calendars pass 0 explicitly
+ * because they render Sunday-first and LTR regardless of language.
+ */
+export function orderedWeekdays(d: Dictionary, startDay?: number): string[] {
+  const start = startDay ?? d.calendar.weekStart;
   return [...d.calendar.days.slice(start), ...d.calendar.days.slice(0, start)];
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { Dictionary } from '@/lib/i18n';
+import { WORK_DAY_START_HOUR, WORK_DAY_END_HOUR } from '@/lib/time';
 
 /**
  * Every server action validates its input through one of these. Schemas are
@@ -95,20 +96,37 @@ export function courseDaysSchema(d: Dictionary) {
 }
 
 export function daySlotSchema(d: Dictionary) {
-  return z.object({
-    courseDayId: z.string().trim().cuid(d.errors.unknownDay),
-    startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickStart),
-    sessionHours: z.coerce
-      .number()
-      .int(d.validation.sessionHoursInvalid)
-      .refine((v) => v === 1 || v === 2 || v === 3, d.validation.sessionHoursInvalid),
-    capacity: z.coerce
-      .number()
-      .int()
-      .min(1, d.validation.capacityMin)
-      .max(100, d.validation.capacityMax),
-    note: z.string().trim().max(200, d.validation.tooLong).default('')
-  });
+  return z
+    .object({
+      courseDayId: z.string().trim().cuid(d.errors.unknownDay),
+      startTime: z.string().trim().regex(/^\d{2}:\d{2}$/, d.validation.pickStart),
+      sessionHours: z.coerce
+        .number()
+        .int(d.validation.sessionHoursInvalid)
+        .refine((v) => v === 1 || v === 2 || v === 3, d.validation.sessionHoursInvalid),
+      capacity: z.coerce
+        .number()
+        .int()
+        .min(1, d.validation.capacityMin)
+        .max(100, d.validation.capacityMax),
+      note: z.string().trim().max(200, d.validation.tooLong).default('')
+    })
+    // The grid only offers valid cells, but a server action is reachable
+    // directly, so the working window is enforced here too.
+    .refine(
+      (v) => {
+        const hour = Number.parseInt(v.startTime.slice(0, 2), 10);
+        return hour >= WORK_DAY_START_HOUR && hour < WORK_DAY_END_HOUR;
+      },
+      { message: d.validation.outsideWorkingHours, path: ['startTime'] }
+    )
+    .refine(
+      (v) => {
+        const hour = Number.parseInt(v.startTime.slice(0, 2), 10);
+        return hour + v.sessionHours <= WORK_DAY_END_HOUR;
+      },
+      { message: d.validation.sessionExceedsDay, path: ['sessionHours'] }
+    );
 }
 
 export function bookSlotSchema(d: Dictionary) {

@@ -28,6 +28,43 @@ export const SESSION_HOURS = [1, 2, 3] as const;
 export type SessionHours = (typeof SESSION_HOURS)[number];
 
 /**
+ * The teaching window, in APP_TIMEZONE. 20:00 to 24:00 gives four one-hour
+ * slots a day. Change these two numbers to widen it — the schedule grid, the
+ * validation and the session-length options all derive from them.
+ */
+export const WORK_DAY_START_HOUR = 20;
+export const WORK_DAY_END_HOUR = 24;
+
+/** Every hour a session could begin on: 20, 21, 22, 23. */
+export const WORK_DAY_HOURS = Array.from(
+  { length: WORK_DAY_END_HOUR - WORK_DAY_START_HOUR },
+  (_, i) => WORK_DAY_START_HOUR + i
+);
+
+/** "20:00" from 20. */
+export function hourLabel(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`;
+}
+
+/**
+ * The hour of an instant as it reads in APP_TIMEZONE. hourCycle h23 is used
+ * because h12/hour12:false renders midnight as 24 in some environments.
+ */
+export function hourInAppTz(value: Date | string, timeZone: string = APP_TIMEZONE): number {
+  const text = new Intl.DateTimeFormat('en-GB', {
+    timeZone,
+    hour: '2-digit',
+    hourCycle: 'h23'
+  }).format(new Date(value));
+  return Number.parseInt(text, 10);
+}
+
+/** A session of `hours` starting at `hour` must finish by the end of the day. */
+export function fitsInWorkDay(hour: number, hours: number): boolean {
+  return hour >= WORK_DAY_START_HOUR && hour + hours <= WORK_DAY_END_HOUR;
+}
+
+/**
  * A CourseDay.date is a pure calendar-date KEY, not an instant: midnight UTC of
  * the literal YYYY-MM-DD the admin clicked. It is deliberately NOT run through
  * zonedInputToUtc — applying an offset to a date key is exactly how a schedule

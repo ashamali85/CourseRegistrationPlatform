@@ -75,6 +75,24 @@ export function formatDateKeyShort(
   }).format(new Date(value));
 }
 
+/** Weekday alone, e.g. "Sun" / "الأحد". Date keys are formatted in UTC. */
+export function formatWeekday(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(intlTag(locale), {
+    timeZone: 'UTC',
+    weekday: 'short'
+  }).format(new Date(value));
+}
+
+/** Day and month alone, e.g. "17 Aug". Split from the weekday so the
+ *  timetable header can stack them without slicing a formatted string. */
+export function formatDayMonth(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat(intlTag(locale), {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: 'short'
+  }).format(new Date(value));
+}
+
 export function minutesBetween(a: Date | string, b: Date | string): number {
   return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000);
 }
