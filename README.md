@@ -126,14 +126,34 @@ moved from `courseId` to `courseDayId`, and `Course.durationMinutes` became
 `Course.sessionHours`. `prisma db push` will not drop columns holding data
 without being told to, and there is no prompt in CI, so the build fails.
 
-For **one** deploy, add `ALLOW_DATA_LOSS` = `true` to your Vercel environment
-variables, then delete it once the deploy succeeds. `scripts/db-push.mjs` reads
-it and adds `--accept-data-loss` only when it is set. Leaving it on permanently
-means a future schema edit could silently drop a column of real bookings, which
-is exactly the failure it exists to prevent.
+There are two escape hatches, both read by `scripts/db-push.mjs`, both off by
+default, and both meant to be set for exactly one deploy:
 
-Any existing courses will keep their titles but lose their old standalone
-slots — rebuild the schedule from the course's Schedule page.
+| Variable | Adds | Use when |
+|---|---|---|
+| `ALLOW_DATA_LOSS` | `--accept-data-loss` | Columns or tables holding data need to be **dropped** |
+| `ALLOW_DB_RESET` | `--force-reset` | A **new required column** is added to a table that already has rows |
+
+**This particular upgrade needs `ALLOW_DB_RESET`.** `AvailabilitySlot` gains a
+required `courseDayId`, and if the table already has rows Prisma has no value to
+backfill them with — `--accept-data-loss` cannot help, because nothing is being
+dropped. You will see:
+
+```
+Added the required column `courseDayId` to the `AvailabilitySlot` table
+without a default value. There are N rows in this table.
+```
+
+Set `ALLOW_DB_RESET` = `true` in Vercel, redeploy, then **delete it**.
+
+`--force-reset` drops the whole schema and rebuilds it: every user, course,
+day, slot and booking is erased. The seed then recreates your admin account and
+the two sample courses. Before you do this, make sure `ADMIN_PASSWORD` is set
+in Vercel — otherwise the seed generates a temporary one and prints it in the
+build log, and you will have to go dig it out of the deployment output.
+
+Leaving either variable set is the real risk: a future schema edit would then
+wipe live bookings without stopping to complain.
 
 ---
 
