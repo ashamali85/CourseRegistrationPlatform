@@ -149,6 +149,21 @@ it, running the migration, then confirming a required `courseDayId` could be
 added with no flags; that re-running it is a no-op; and that it does not touch
 live slots once the new schema is in place.
 
+### Stale files from previous versions
+
+Unpacking an update over an existing checkout is additive — files removed
+upstream stay behind, and Next.js typechecks every `.ts`/`.tsx` in the project,
+so an orphaned component fails the build even when nothing imports it.
+
+`scripts/clean-stale.mjs` runs as the first step of `npm run build` and deletes
+those files automatically. The list is explicit, so it can never touch anything
+you added yourself. You will see one of:
+
+```
+[clean-stale] removed components/AvailabilityManager.tsx (227 bytes)
+[clean-stale] nothing to remove.
+```
+
 ### The emergency flags
 
 `ALLOW_DATA_LOSS` and `ALLOW_DB_RESET` still exist but **you should not need
