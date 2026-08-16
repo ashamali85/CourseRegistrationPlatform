@@ -146,6 +146,32 @@ without a default value. There are N rows in this table.
 
 Set `ALLOW_DB_RESET` = `true` in Vercel, redeploy, then **delete it**.
 
+Paste the value as `true` with **no quotes**. Vercel treats whatever is in the
+field as the literal value, so `"true"` arrives with the quotes attached. The
+build log now prints what it actually received at the top of the db-push step:
+
+```
+[db-push] ALLOW_DB_RESET="true" -> ON
+[db-push] ALLOW_DB_RESET=<not set>
+```
+
+If it says `<not set>` or `-> off`, the variable never reached the build —
+check it is ticked for the environment you are deploying (Production vs
+Preview) and trigger a **new** deployment rather than retrying the old one.
+
+### Alternative: clear the table instead
+
+The flag only exists because the table has rows. Emptying it removes the
+problem entirely — with zero rows, a required column can be added with no flag
+and nothing else is lost. In the Neon dashboard, open **SQL Editor** and run:
+
+```sql
+DELETE FROM "AvailabilitySlot";
+```
+
+Then redeploy with no migration variables set at all. This keeps your admin
+account and any registered users, which `--force-reset` would destroy.
+
 `--force-reset` drops the whole schema and rebuilds it: every user, course,
 day, slot and booking is erased. The seed then recreates your admin account and
 the two sample courses. Before you do this, make sure `ADMIN_PASSWORD` is set
