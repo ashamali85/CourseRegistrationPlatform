@@ -338,6 +338,22 @@ POST, so each one defends itself rather than trusting the page that rendered it.
 
 ---
 
+## Pre-deploy checks
+
+`npm run typecheck:offline` runs three things, in the order they catch problems
+most cheaply:
+
+1. `scripts/check-css.mjs` — brace balance and block structure in
+   `globals.css`. Webpack reports a malformed stylesheet at line 1 regardless
+   of where the fault is; this reports the real line.
+2. `scripts/gen-prisma-stub.mjs` — types the Prisma client from the schema
+   (see below).
+3. `tsc --noEmit`.
+
+The CSS check and the stale-file cleanup also run at the start of
+`npm run build`, so a deploy fails in seconds with a clear message rather than
+minutes later inside a webpack stack trace.
+
 ## Typechecking without a Prisma client
 
 `prisma generate` needs network access to `binaries.prisma.sh`. Where that is

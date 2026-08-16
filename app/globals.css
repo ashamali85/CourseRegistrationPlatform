@@ -281,7 +281,7 @@ tr:last-child td { border-bottom: none; }
 .tt-slot-time { font-size: .74rem; font-weight: 800; letter-spacing: .01em; }
 .tt-slot-meta { font-size: .66rem; font-weight: 600; opacity: .88; }
 
-.slot-list {.slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.slot-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
 .slot-card { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; background: var(--surface-2); }
 .slot-card.is-full { opacity: 0.6; }
 .slot-time { font-weight: 800; font-size: 0.98rem; }
