@@ -8,7 +8,13 @@ import {
   type ActionState
 } from '@/lib/actions/schedule-actions';
 import { useI18n } from '@/components/I18nProvider';
-import { WORK_DAY_HOURS, WORK_DAY_END_HOUR, hourLabel, SESSION_HOURS } from '@/lib/time';
+import {
+  WORK_DAY_HOURS,
+  WORK_DAY_END_HOUR,
+  hourValue,
+  hourDisplay,
+  SESSION_HOURS
+} from '@/lib/time';
 import { fill } from '@/lib/i18n';
 import FormAlert from '@/components/FormAlert';
 
@@ -22,12 +28,20 @@ export type GridSlot = {
   booked: number;
 };
 
+/** A session on another course. Same instructor, so the hour is unavailable. */
+export type BlockedSlot = {
+  startHour: number;
+  spanHours: number;
+  courseTitle: string;
+};
+
 export type GridDay = {
   id: string;
   /** Pre-formatted on the server so the client does no timezone maths. */
   label: string;
   weekday: string;
   slots: GridSlot[];
+  blocked: BlockedSlot[];
 };
 
 export default function WeekScheduleGrid({
@@ -41,7 +55,6 @@ export default function WeekScheduleGrid({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<ActionState>({});
   const [sessionHours, setSessionHours] = useState(defaultHours);
-  const [capacity, setCapacity] = useState(1);
 
   if (days.length === 0) {
     return (
@@ -59,24 +72,40 @@ export default function WeekScheduleGrid({
     );
   }
 
+  function blockedCovering(day: GridDay, hour: number) {
+    return day.blocked.find(
+      (slot) => hour >= slot.startHour && hour < slot.startHour + slot.spanHours
+    );
+  }
+
   function addSlot(day: GridDay, hour: number) {
     if (hour + sessionHours > WORK_DAY_END_HOUR) {
       setFeedback({ error: fill(d.schedule.noRoom, { hours: sessionHours }) });
       return;
     }
-    // A longer session must not run into an existing one further down the day.
+    // A longer session must not run into an existing one — this course's or
+    // another's — further down the day.
     for (let h = hour; h < hour + sessionHours; h++) {
       if (slotCovering(day, h)) {
         setFeedback({ error: d.schedule.occupied });
+        return;
+      }
+      const clash = blockedCovering(day, h);
+      if (clash) {
+        setFeedback({
+          error: fill(d.schedule.busyWith, { course: clash.courseTitle })
+        });
         return;
       }
     }
 
     const data = new FormData();
     data.set('courseDayId', day.id);
-    data.set('startTime', hourLabel(hour));
+    data.set('startTime', hourValue(hour));
     data.set('sessionHours', String(sessionHours));
-    data.set('capacity', String(capacity));
+    // One seat per session. The column still exists for future group
+    // sessions, but nothing in the UI varies it.
+    data.set('capacity', '1');
 
     startTransition(async () => {
       setFeedback(await addDaySlotAction({}, data));
@@ -123,17 +152,6 @@ export default function WeekScheduleGrid({
             ))}
           </select>
         </label>
-
-        <label className="inline-field">
-          <span>{d.schedule.seatsPerSession}</span>
-          <input
-            type="number"
-            min={1}
-            max={100}
-            value={capacity}
-            onChange={(e) => setCapacity(Math.max(1, Number(e.target.value) || 1))}
-          />
-        </label>
       </div>
 
       <p className="small muted mt-2">{d.schedule.gridHint}</p>
@@ -151,9 +169,13 @@ export default function WeekScheduleGrid({
           className="tt-grid"
           style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(104px, 1fr))` }}
         >
-          <div className="tt-corner" />
-          {days.map((day) => (
-            <div key={day.id} className="tt-day-head">
+          <div className="tt-corner" style={{ gridColumn: 1, gridRow: 1 }} />
+          {days.map((day, dayIndex) => (
+            <div
+              key={day.id}
+              className="tt-day-head"
+              style={{ gridColumn: dayIndex + 2, gridRow: 1 }}
+            >
               <span className="tt-weekday">{day.weekday}</span>
               <span className="tt-date">{day.label}</span>
               {day.slots.length > 0 && (
@@ -172,23 +194,42 @@ export default function WeekScheduleGrid({
 
           {WORK_DAY_HOURS.map((hour, rowIndex) => (
             <div key={hour} className="tt-row" style={{ gridRow: rowIndex + 2 }}>
-              {hourLabel(hour)}
+              {hourDisplay(hour)}
             </div>
           ))}
 
           {days.map((day, colIndex) =>
             WORK_DAY_HOURS.map((hour, rowIndex) => {
               const covering = slotCovering(day, hour);
+              const blocked = !covering ? blockedCovering(day, hour) : undefined;
+              const span = covering ?? blocked;
 
               // Only the block's first hour renders; later hours are spanned.
-              if (covering && covering.startHour !== hour) return null;
+              if (span && span.startHour !== hour) return null;
 
               const style = {
                 gridColumn: colIndex + 2,
-                gridRow: covering
-                  ? `${rowIndex + 2} / span ${covering.spanHours}`
+                gridRow: span
+                  ? `${rowIndex + 2} / span ${span.spanHours}`
                   : rowIndex + 2
               };
+
+              if (blocked) {
+                return (
+                  <div
+                    key={`${day.id}-${hour}`}
+                    className="tt-blocked"
+                    style={style}
+                    title={fill(d.schedule.busyWith, { course: blocked.courseTitle })}
+                  >
+                    <span className="tt-blocked-time">
+                      {hourDisplay(blocked.startHour)}–
+                      {hourDisplay(blocked.startHour + blocked.spanHours)}
+                    </span>
+                    <span className="tt-blocked-course">{blocked.courseTitle}</span>
+                  </div>
+                );
+              }
 
               if (covering) {
                 const full = covering.booked >= covering.capacity;
@@ -202,12 +243,12 @@ export default function WeekScheduleGrid({
                     disabled={pending}
                   >
                     <span className="tt-slot-time">
-                      {hourLabel(covering.startHour)}–
-                      {hourLabel(covering.startHour + covering.spanHours)}
+                      {hourDisplay(covering.startHour)}–
+                      {hourDisplay(covering.startHour + covering.spanHours)}
                     </span>
-                    <span className="tt-slot-meta">
-                      {covering.booked}/{covering.capacity} {d.schedule.booked}
-                    </span>
+                    {covering.booked > 0 && (
+                      <span className="tt-slot-meta">{d.schedule.booked}</span>
+                    )}
                   </button>
                 );
               }
@@ -220,7 +261,7 @@ export default function WeekScheduleGrid({
                   style={style}
                   onClick={() => addSlot(day, hour)}
                   disabled={pending}
-                  aria-label={`${day.label} ${hourLabel(hour)}`}
+                  aria-label={`${day.label} ${hourDisplay(hour)}`}
                 >
                   <span className="tt-plus">+</span>
                 </button>

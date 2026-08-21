@@ -41,9 +41,17 @@ export const WORK_DAY_HOURS = Array.from(
   (_, i) => WORK_DAY_START_HOUR + i
 );
 
-/** "20:00" from 20. */
-export function hourLabel(hour: number): string {
-  return `${String(hour).padStart(2, '0')}:00`;
+/** "20:00" from 20 — the 24-hour value a <input type="time"> and the server expect. */
+export function hourValue(hour: number): string {
+  return `${String(hour % 24).padStart(2, '0')}:00`;
+}
+
+/** "8 PM" from 20, "12 AM" from 24. Display only — never posted. */
+export function hourDisplay(hour: number): string {
+  const h = hour % 24;
+  const period = h < 12 ? 'AM' : 'PM';
+  const twelve = h % 12 === 0 ? 12 : h % 12;
+  return `${twelve} ${period}`;
 }
 
 /**

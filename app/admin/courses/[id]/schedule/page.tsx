@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getT } from '@/lib/locale';
 import { utcToDateKey, todayKey, dateKeyToUtc, hourInAppTz } from '@/lib/time';
-import { formatWeekday, formatDayMonth } from '@/lib/format';
+import { formatWeekday, formatDayMonth, dayKey } from '@/lib/format';
 import { APP_TIMEZONE } from '@/lib/env';
 import TopBar from '@/components/TopBar';
 import ScheduleCalendar from '@/components/ScheduleCalendar';
@@ -39,6 +39,25 @@ export default async function CourseSchedulePage({
     }
   });
 
+  // Slots belonging to OTHER courses on the same dates. There is one
+  // instructor, so these hours are unavailable here too — and if they are not
+  // drawn, the cell looks free and clicking it only fails after a round trip.
+  const otherSlots =
+    days.length === 0
+      ? []
+      : await prisma.availabilitySlot.findMany({
+          where: {
+            startsAt: {
+              gte: days[0].date,
+              lt: new Date(days[days.length - 1].date.getTime() + 48 * 3600 * 1000)
+            },
+            courseDay: { courseId: { not: course.id } }
+          },
+          include: {
+            courseDay: { include: { course: { select: { title: true } } } }
+          }
+        });
+
   const allDays = await prisma.courseDay.findMany({
     where: { courseId: course.id },
     select: {
@@ -70,7 +89,17 @@ export default async function CourseSchedulePage({
         ),
         capacity: slot.capacity,
         booked: slot._count.bookings
-      }))
+      })),
+      blocked: otherSlots
+        .filter((slot) => dayKey(slot.startsAt) === utcToDateKey(day.date))
+        .map((slot) => ({
+          startHour: hourInAppTz(slot.startsAt),
+          spanHours: Math.max(
+            1,
+            Math.round((slot.endsAt.getTime() - slot.startsAt.getTime()) / 3600000)
+          ),
+          courseTitle: slot.courseDay.course.title
+        }))
     };
   });
 

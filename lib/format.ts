@@ -5,25 +5,28 @@ import { DEFAULT_LOCALE, intlTag, type Locale } from '@/lib/i18n';
  * Server and client both format through these helpers with an explicit time
  * zone, so rendered times never differ between SSR and hydration.
  */
-export function formatDateTime(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
-  return new Intl.DateTimeFormat(intlTag(locale), {
+/**
+ * Times always render as "8:00 PM" in English, in every locale. Arabic would
+ * otherwise produce "م"/"ص" for the day period, and the requirement is AM/PM
+ * with Latin digits throughout. Dates stay localised — only the clock is fixed.
+ */
+export function formatTime(value: Date | string, _locale: Locale = DEFAULT_LOCALE): string {
+  return new Intl.DateTimeFormat('en-US', {
     timeZone: APP_TIMEZONE,
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
     hour12: true
   }).format(new Date(value));
 }
 
-export function formatTime(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
-  return new Intl.DateTimeFormat(intlTag(locale), {
+export function formatDateTime(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {
+  const date = new Intl.DateTimeFormat(intlTag(locale), {
     timeZone: APP_TIMEZONE,
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
   }).format(new Date(value));
+  return `${date}, ${formatTime(value, locale)}`;
 }
 
 export function formatDate(value: Date | string, locale: Locale = DEFAULT_LOCALE): string {

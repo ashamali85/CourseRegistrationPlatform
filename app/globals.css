@@ -248,7 +248,7 @@ tr:last-child td { border-bottom: none; }
 .tt-day-head {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   padding: 7px 6px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line);
-  background: var(--surface-2); grid-row: 1;
+  background: var(--surface-2);
 }
 .tt-weekday { font-size: .68rem; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; }
 .tt-date { font-size: .82rem; font-weight: 700; color: var(--ink); }
@@ -284,6 +284,26 @@ tr:last-child td { border-bottom: none; }
 }
 .tt-slot:hover { filter: brightness(1.07); }
 .tt-slot.is-full { background: linear-gradient(135deg, #b7791f 0%, #d69e2e 100%); }
+/* An hour taken by another course. Drawn rather than left blank so the cell
+   cannot be clicked by mistake — the clash was previously invisible until the
+   server rejected it. */
+.tt-blocked {
+  margin: 2px; border-radius: 8px; padding: 6px 9px; overflow: hidden;
+  border: 1px dashed rgba(100,116,139,.45);
+  background: repeating-linear-gradient(
+    45deg, var(--surface-2), var(--surface-2) 6px,
+    rgba(100,116,139,.10) 6px, rgba(100,116,139,.10) 12px
+  );
+  color: var(--ink-soft); cursor: not-allowed;
+  display: flex; flex-direction: column; align-items: flex-start;
+  justify-content: center; gap: 2px; text-align: left;
+}
+.tt-blocked-time { font-size: .72rem; font-weight: 700; }
+.tt-blocked-course {
+  font-size: .64rem; font-weight: 600; opacity: .85;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+
 .tt-slot-time { font-size: .74rem; font-weight: 800; letter-spacing: .01em; }
 .tt-slot-meta { font-size: .66rem; font-weight: 600; opacity: .88; }
 
