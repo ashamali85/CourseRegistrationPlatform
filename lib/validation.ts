@@ -129,6 +129,16 @@ export function daySlotSchema(d: Dictionary) {
     );
 }
 
+export function resizeSlotSchema(d: Dictionary) {
+  return z.object({
+    id: z.string().trim().cuid(d.errors.unknownSlot),
+    sessionHours: z.coerce
+      .number()
+      .int(d.validation.sessionHoursInvalid)
+      .refine((v) => v === 1 || v === 2 || v === 3, d.validation.sessionHoursInvalid)
+  });
+}
+
 export function bookSlotSchema(d: Dictionary) {
   return z.object({
     slotId: z.string().trim().cuid(d.errors.unknownSlot),

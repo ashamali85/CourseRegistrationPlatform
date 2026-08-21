@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import {
   addDaySlotAction,
   deleteDaySlotAction,
   copySlotForwardAction,
+  clearCourseTimesAction,
+  resizeSlotAction,
   type ActionState
 } from '@/lib/actions/schedule-actions';
 import { useI18n } from '@/components/I18nProvider';
@@ -16,6 +18,7 @@ import {
   SESSION_HOURS
 } from '@/lib/time';
 import { fill } from '@/lib/i18n';
+import { WORK_DAY_START_HOUR } from '@/lib/time';
 import FormAlert from '@/components/FormAlert';
 
 export type GridSlot = {
@@ -45,9 +48,11 @@ export type GridDay = {
 };
 
 export default function WeekScheduleGrid({
+  courseId,
   days,
   defaultHours
 }: {
+  courseId: string;
   days: GridDay[];
   defaultHours: number;
 }) {
@@ -55,6 +60,13 @@ export default function WeekScheduleGrid({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<ActionState>({});
   const [sessionHours, setSessionHours] = useState(defaultHours);
+
+  /** Live state while the bottom edge of a block is being dragged. */
+  const [resizing, setResizing] = useState<{ id: string; span: number } | null>(null);
+  // The pointerup handler needs the latest span, and reading it from state
+  // inside the listener would capture the value from when the drag began.
+  const resizeSpanRef = useRef(0);
+  const gridRef = useRef<HTMLDivElement | null>(null);
 
   // The copy control belongs to the rightmost block of each hour row: from
   // there, "copy forward" has an unambiguous meaning.
@@ -67,6 +79,8 @@ export default function WeekScheduleGrid({
       }
     }
   });
+
+  const totalSlots = days.reduce((sum, day) => sum + day.slots.length, 0);
 
   if (days.length === 0) {
     return (
@@ -133,6 +147,82 @@ export default function WeekScheduleGrid({
     });
   }
 
+  function clearAllTimes() {
+    if (!confirm(d.schedule.confirmClearTimes)) return;
+    const data = new FormData();
+    data.set('id', courseId);
+    startTransition(async () => {
+      setFeedback(await clearCourseTimesAction({}, data));
+    });
+  }
+
+  /**
+   * How many hours this session could occupy before it hits the end of the day
+   * or another session. Its own hours do not count as an obstacle.
+   */
+  function maxSpanFor(day: GridDay, slot: GridSlot) {
+    let span = 1;
+    for (let hour = slot.startHour + 1; hour < WORK_DAY_END_HOUR; hour++) {
+      const own = slotCovering(day, hour);
+      if ((own && own.id !== slot.id) || blockedCovering(day, hour)) break;
+      span++;
+    }
+    return Math.min(span, 3);
+  }
+
+  /** Measured, not hard-coded, so it stays correct if the row height changes. */
+  function rowHeight() {
+    const row = gridRef.current?.querySelector('.tt-row');
+    return row ? row.getBoundingClientRect().height : 56;
+  }
+
+  function startResize(
+    event: React.PointerEvent<HTMLDivElement>,
+    day: GridDay,
+    slot: GridSlot
+  ) {
+    if (slot.booked > 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+
+    const unit = rowHeight();
+    const startY = event.clientY;
+    const limit = maxSpanFor(day, slot);
+
+    resizeSpanRef.current = slot.spanHours;
+    setResizing({ id: slot.id, span: slot.spanHours });
+
+    const onMove = (moveEvent: PointerEvent) => {
+      const steps = Math.round((moveEvent.clientY - startY) / unit);
+      const next = Math.min(Math.max(slot.spanHours + steps, 1), limit);
+      if (next !== resizeSpanRef.current) {
+        resizeSpanRef.current = next;
+        setResizing({ id: slot.id, span: next });
+      }
+    };
+
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+
+      const finalSpan = resizeSpanRef.current;
+      setResizing(null);
+      if (finalSpan === slot.spanHours) return;
+
+      const data = new FormData();
+      data.set('id', slot.id);
+      data.set('sessionHours', String(finalSpan));
+      startTransition(async () => {
+        setFeedback(await resizeSlotAction({}, data));
+      });
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
   function copyForward(slot: GridSlot) {
     const data = new FormData();
     data.set('id', slot.id);
@@ -157,6 +247,14 @@ export default function WeekScheduleGrid({
           <h3>{d.schedule.setTimes}</h3>
           <p className="muted small mt-2">{d.schedule.workingHours}</p>
         </div>
+        <button
+          type="button"
+          className="btn btn-danger btn-sm"
+          onClick={clearAllTimes}
+          disabled={pending || totalSlots === 0}
+        >
+          {d.schedule.clearTimes}
+        </button>
       </div>
 
       <div className="grid-controls">
@@ -176,6 +274,7 @@ export default function WeekScheduleGrid({
       </div>
 
       <p className="small muted mt-2">{d.schedule.gridHint}</p>
+      <p className="small muted">{d.schedule.resizeHint}</p>
 
       {(feedback.error || feedback.message) && (
         <div className="mt-4">
@@ -187,6 +286,7 @@ export default function WeekScheduleGrid({
           language, and mirroring it puts the earliest day on the right. */}
       <div className={`tt-scroll mt-4${pending ? ' is-pending' : ''}`} dir="ltr">
         <div
+          ref={gridRef}
           className="tt-grid"
           style={{ gridTemplateColumns: `64px repeat(${days.length}, minmax(104px, 1fr))` }}
         >
@@ -217,11 +317,14 @@ export default function WeekScheduleGrid({
               // Only the block's first hour renders; later hours are spanned.
               if (span && span.startHour !== hour) return null;
 
+              const previewSpan =
+                covering && resizing?.id === covering.id
+                  ? resizing.span
+                  : span?.spanHours;
+
               const style = {
                 gridColumn: colIndex + 2,
-                gridRow: span
-                  ? `${rowIndex + 2} / span ${span.spanHours}`
-                  : rowIndex + 2
+                gridRow: span ? `${rowIndex + 2} / span ${previewSpan}` : rowIndex + 2
               };
 
               if (blocked) {
@@ -243,6 +346,11 @@ export default function WeekScheduleGrid({
 
               if (covering) {
                 const full = covering.booked >= covering.capacity;
+                // While dragging, render the previewed length rather than the
+                // saved one so the block follows the cursor.
+                const liveSpan =
+                  resizing?.id === covering.id ? resizing.span : covering.spanHours;
+                const canResize = covering.booked === 0;
                 const isLastForHour =
                   lastBookedByHour.get(covering.startHour) === colIndex;
                 const canCopy =
@@ -256,18 +364,20 @@ export default function WeekScheduleGrid({
                 return (
                   <div
                     key={`${day.id}-${hour}`}
-                    className={`tt-slot${full ? ' is-full' : ''}`}
+                    className={`tt-slot${full ? ' is-full' : ''}${
+                      resizing?.id === covering.id ? ' is-resizing' : ''
+                    }`}
                     style={style}
                   >
                     <button
                       type="button"
                       className="tt-slot-main"
                       onClick={() => removeSlot(covering)}
-                      disabled={pending}
+                      disabled={pending || resizing !== null}
                     >
                       <span className="tt-slot-time">
                         {hourDisplay(covering.startHour)}–
-                        {hourDisplay(covering.startHour + covering.spanHours)}
+                        {hourDisplay(covering.startHour + liveSpan)}
                       </span>
                       {covering.booked > 0 && (
                         <span className="tt-slot-meta">{d.schedule.booked}</span>
@@ -304,6 +414,18 @@ export default function WeekScheduleGrid({
                           <path d="M19 5.5 21.5 8 19 10.5" />
                         </svg>
                       </button>
+                    )}
+
+                    {canResize && (
+                      <div
+                        className="tt-resize"
+                        onPointerDown={(event) => startResize(event, day, covering)}
+                        title={d.schedule.resizeHint}
+                        role="separator"
+                        aria-orientation="horizontal"
+                      >
+                        <span className="tt-resize-grip" />
+                      </div>
                     )}
                   </div>
                 );

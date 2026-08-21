@@ -6,8 +6,21 @@ import { requireAdminAction } from '@/lib/auth';
 import { recordAudit } from '@/lib/audit';
 import { getT } from '@/lib/locale';
 import { fill } from '@/lib/i18n';
-import { courseDaysSchema, daySlotSchema, idSchema, fieldErrors } from '@/lib/validation';
-import { dateKeyToUtc, utcToDateKey, todayKey, zonedInputToUtc } from '@/lib/time';
+import {
+  courseDaysSchema,
+  daySlotSchema,
+  resizeSlotSchema,
+  idSchema,
+  fieldErrors
+} from '@/lib/validation';
+import {
+  dateKeyToUtc,
+  utcToDateKey,
+  todayKey,
+  zonedInputToUtc,
+  hourInAppTz,
+  WORK_DAY_END_HOUR
+} from '@/lib/time';
 import { APP_TIMEZONE } from '@/lib/env';
 import { formatDateKey, formatTime } from '@/lib/format';
 
@@ -318,4 +331,141 @@ export async function copySlotForwardAction(
   revalidatePath(`/courses/${slot.courseDay.courseId}`);
 
   return { ok: true, message: fill(d.success.copiedForward, { created, skipped }) };
+}
+
+/**
+ * Remove every upcoming session on this course's schedule in one go.
+ *
+ * Sessions with confirmed bookings are KEPT, not deleted — clearing a schedule
+ * is a convenience, and it must never silently cancel a student's seat. Past
+ * sessions are left alone so the booking history stays intact.
+ */
+export async function clearCourseTimesAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireAdminAction();
+  const { d } = await getT();
+
+  const parsed = idSchema(d).safeParse({ id: formData.get('id') });
+  if (!parsed.success) return { error: d.errors.unknownCourse };
+
+  const course = await prisma.course.findUnique({ where: { id: parsed.data.id } });
+  if (!course) return { error: d.errors.courseGone };
+
+  const slots = await prisma.availabilitySlot.findMany({
+    where: {
+      courseDay: { courseId: course.id },
+      startsAt: { gte: new Date() }
+    },
+    include: {
+      _count: { select: { bookings: { where: { status: 'CONFIRMED' } } } }
+    }
+  });
+
+  const removable = slots.filter((slot) => slot._count.bookings === 0);
+  const kept = slots.length - removable.length;
+
+  if (removable.length === 0) {
+    return { error: kept > 0 ? d.schedule.onlyBookedLeft : d.schedule.nothingToClear };
+  }
+
+  await prisma.availabilitySlot.deleteMany({
+    where: { id: { in: removable.map((slot) => slot.id) } }
+  });
+
+  await recordAudit({
+    actorUserId: admin.id,
+    action: 'CLEAR_TIMES',
+    entityType: 'Course',
+    entityId: course.id,
+    entityName: course.title,
+    details: `${removable.length} removed, ${kept} kept (booked)`
+  });
+
+  revalidatePath(`/admin/courses/${course.id}/schedule`);
+  revalidatePath(`/courses/${course.id}`);
+
+  return {
+    ok: true,
+    message: fill(d.success.timesCleared, { removed: removable.length, kept })
+  };
+}
+
+/**
+ * Change a session's length in place — the start stays put, only the end moves.
+ *
+ * Driven by dragging the bottom edge of a block, but the same rules are
+ * enforced here because a server action is reachable directly: 1–3 hours, must
+ * finish by the end of the teaching day, and must not run into another session
+ * (this course's or any other's).
+ *
+ * A session with a confirmed booking is refused outright. A student booked a
+ * specific window; silently making it shorter or longer changes what they
+ * agreed to.
+ */
+export async function resizeSlotAction(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const admin = await requireAdminAction();
+  const { d } = await getT();
+
+  const parsed = resizeSlotSchema(d).safeParse({
+    id: formData.get('id'),
+    sessionHours: formData.get('sessionHours')
+  });
+  if (!parsed.success) return { fieldErrors: fieldErrors(parsed.error) };
+
+  const { id, sessionHours } = parsed.data;
+
+  const slot = await prisma.availabilitySlot.findUnique({
+    where: { id },
+    include: {
+      courseDay: true,
+      _count: { select: { bookings: { where: { status: 'CONFIRMED' } } } }
+    }
+  });
+  if (!slot) return { error: d.errors.slotGone };
+
+  if (slot._count.bookings > 0) {
+    return { error: d.schedule.cannotResizeBooked };
+  }
+
+  const startHour = hourInAppTz(slot.startsAt);
+  if (startHour + sessionHours > WORK_DAY_END_HOUR) {
+    return { error: d.validation.sessionExceedsDay };
+  }
+
+  const endsAt = new Date(slot.startsAt.getTime() + sessionHours * 60 * 60 * 1000);
+  if (endsAt.getTime() === slot.endsAt.getTime()) {
+    return { ok: true };
+  }
+
+  // Ignore this slot itself, or it would always collide with its own hours.
+  const clash = await findClash(slot.startsAt, endsAt, slot.id);
+  if (clash) {
+    return {
+      error: fill(d.errors.slotOverlapCourse, {
+        course: clash.courseDay.course.title,
+        when: formatTime(clash.startsAt, 'en')
+      })
+    };
+  }
+
+  await prisma.availabilitySlot.update({ where: { id: slot.id }, data: { endsAt } });
+
+  await recordAudit({
+    actorUserId: admin.id,
+    action: 'RESIZE',
+    entityType: 'AvailabilitySlot',
+    entityId: slot.id,
+    entityName: `${startHour}:00`,
+    details: `${sessionHours}h`
+  });
+
+  revalidatePath(`/admin/courses/${slot.courseDay.courseId}/schedule`);
+  revalidatePath(`/courses/${slot.courseDay.courseId}`);
+
+  return { ok: true, message: fill(d.success.sessionResized, { hours: sessionHours }) };
 }

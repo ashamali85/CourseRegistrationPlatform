@@ -256,10 +256,30 @@ the shape of the data stops two courses being scheduled for 10:00 the same
 Tuesday. `findClash` in `lib/actions/schedule-actions.ts` therefore checks new
 slots against every slot in the system, not just the current course's.
 
-**Copy to all days** takes one day's times and applies them to every other day
-of that course. Scheduling a week means setting Sunday once. Days that already
-have times are skipped rather than merged, and individual times that would
-clash with another course are skipped rather than failing the whole operation.
+**Copy forward** is the icon in the corner of a session block. It appears on
+the *last* booked block of each hour row, and copies that session onto every
+later day of the course. Days already taken — by this course or another — are
+skipped rather than failing the whole operation, so one conflict does not
+abandon the rest.
+
+**Resize** by dragging the bottom edge of a session block. The start stays put
+and only the end moves, snapping to whole hours between 1 and 3. The drag stops
+at the end of the teaching day, at the next session, and at any hour blocked by
+another course. A session with a confirmed booking cannot be resized at all —
+the student agreed to a specific window.
+
+The same limits are re-checked in `resizeSlotAction`, because a server action is
+reachable directly no matter what the drag allowed.
+
+**Clear all times** removes every upcoming session at once. Sessions with
+confirmed bookings are kept, not deleted: clearing a schedule is a convenience
+and must never silently cancel a student's seat. Past sessions are left alone
+so the booking history stays intact.
+
+**Blocked hours** from other courses are drawn as hatched, unclickable cells.
+With a single instructor, availability is shared across every course, so a slot
+taken elsewhere is genuinely unavailable here — leaving it blank made the
+conflict invisible until the server rejected the click.
 
 **Booking** carries a sequential human reference (`BK-000001`) from the
 `Counter` table.

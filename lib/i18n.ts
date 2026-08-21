@@ -143,6 +143,12 @@ const en = {
     hours: 'hours',
     noTimesSet: 'No times set yet',
     timesSet: 'times set',
+    clearTimes: 'Clear all times',
+    confirmClearTimes: 'Remove every upcoming session on this schedule? Sessions with confirmed bookings are kept.',
+    nothingToClear: 'There are no upcoming sessions to remove.',
+    onlyBookedLeft: 'Every remaining session has a confirmed booking, so nothing was removed.',
+    resizeHint: 'Drag the bottom edge of a session to change its length (1–3 hours).',
+    cannotResizeBooked: 'This session has a confirmed booking, so its length cannot be changed.',
     copyForward: 'Copy this session to the days that follow',
     copyForwardDisabled: 'No later day is free at this time',
     noDaysTitle: 'No days scheduled yet',
@@ -275,7 +281,9 @@ const en = {
     bookingCancelled: 'Cancelled booking {ref}.',
     alreadyCancelled: 'That booking was already cancelled.',
     scheduleSaved: 'Schedule saved — {added} added, {removed} removed, {total} days total.',
-    copiedForward: 'Added to {created} later day(s), {skipped} skipped.'
+    copiedForward: 'Added to {created} later day(s), {skipped} skipped.',
+    timesCleared: 'Removed {removed} session(s). {kept} kept because they have bookings.',
+    sessionResized: 'Session is now {hours} hour(s).'
   },
   validation: {
     enterValidEmail: 'Enter a valid email address.',
@@ -425,6 +433,12 @@ const ar: Dictionary = {
     hours: 'ساعات',
     noTimesSet: 'لم تُحدَّد أوقات بعد',
     timesSet: 'وقت محدد',
+    clearTimes: 'مسح كل الأوقات',
+    confirmClearTimes: 'هل تريد إزالة كل الجلسات القادمة من هذا الجدول؟ الجلسات التي عليها حجوزات مؤكدة سيتم الإبقاء عليها.',
+    nothingToClear: 'لا توجد جلسات قادمة لإزالتها.',
+    onlyBookedLeft: 'كل الجلسات المتبقية عليها حجوزات مؤكدة، لذلك لم تتم إزالة أي شيء.',
+    resizeHint: 'اسحب الحافة السفلية للجلسة لتغيير مدتها (1–3 ساعات).',
+    cannotResizeBooked: 'هذه الجلسة عليها حجز مؤكد، لذلك لا يمكن تغيير مدتها.',
     copyForward: 'نسخ هذه الجلسة إلى الأيام التالية',
     copyForwardDisabled: 'لا يوجد يوم لاحق متاح في هذا الوقت',
     noDaysTitle: 'لا توجد أيام مجدولة بعد',
@@ -557,7 +571,9 @@ const ar: Dictionary = {
     bookingCancelled: 'تم إلغاء الحجز {ref}.',
     alreadyCancelled: 'هذا الحجز ملغى بالفعل.',
     scheduleSaved: 'تم حفظ الجدول — أُضيف {added}، أُزيل {removed}، الإجمالي {total} يوم.',
-    copiedForward: 'تمت الإضافة إلى {created} يوم لاحق، وتم تخطي {skipped}.'
+    copiedForward: 'تمت الإضافة إلى {created} يوم لاحق، وتم تخطي {skipped}.',
+    timesCleared: 'تمت إزالة {removed} جلسة. تم الإبقاء على {kept} لوجود حجوزات عليها.',
+    sessionResized: 'أصبحت مدة الجلسة {hours} ساعة.'
   },
   validation: {
     enterValidEmail: 'أدخل بريدًا إلكترونيًا صحيحًا.',

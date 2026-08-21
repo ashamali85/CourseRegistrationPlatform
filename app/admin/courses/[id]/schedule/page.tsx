@@ -130,7 +130,11 @@ export default async function CourseSchedulePage({
               lockedDates={lockedDates}
             />
 
-            <WeekScheduleGrid days={gridDays} defaultHours={course.sessionHours} />
+            <WeekScheduleGrid
+              courseId={course.id}
+              days={gridDays}
+              defaultHours={course.sessionHours}
+            />
           </div>
         </div>
       </div>
