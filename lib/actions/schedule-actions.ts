@@ -8,6 +8,7 @@ import { getT } from '@/lib/locale';
 import { fill } from '@/lib/i18n';
 import { courseDaysSchema, daySlotSchema, idSchema, fieldErrors } from '@/lib/validation';
 import { dateKeyToUtc, utcToDateKey, todayKey, zonedInputToUtc } from '@/lib/time';
+import { APP_TIMEZONE } from '@/lib/env';
 import { formatDateKey, formatTime } from '@/lib/format';
 
 export type ActionState = {
@@ -231,15 +232,15 @@ export async function deleteDaySlotAction(
 }
 
 /**
- * Copy one day's times onto every other day of the same course. This is the
- * whole point of scheduling a week at once — without it you retype the same
- * three times seven days running.
+ * Copy ONE session forward onto every later day of the same course.
  *
- * Days that already have times are left alone rather than merged, and any
- * single time that would clash with another course is skipped rather than
- * failing the whole operation.
+ * Triggered from the last booked block of a given hour, so the mental model is
+ * "extend this time across the days that follow" rather than "sync two days".
+ *
+ * A later day is skipped, not fatal, when the time is already taken — by this
+ * course or any other — so one conflict does not abandon the rest.
  */
-export async function copyDayTimesAction(
+export async function copySlotForwardAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -247,79 +248,74 @@ export async function copyDayTimesAction(
   const { d } = await getT();
 
   const parsed = idSchema(d).safeParse({ id: formData.get('id') });
-  if (!parsed.success) return { error: d.errors.unknownDay };
+  if (!parsed.success) return { error: d.errors.unknownSlot };
 
-  const source = await prisma.courseDay.findUnique({
+  const slot = await prisma.availabilitySlot.findUnique({
     where: { id: parsed.data.id },
-    include: { slots: { orderBy: { startsAt: 'asc' } }, course: true }
+    include: { courseDay: { include: { course: true } } }
   });
-  if (!source) return { error: d.errors.dayGone };
-  if (source.slots.length === 0) return { error: d.errors.noTimesToCopy };
+  if (!slot) return { error: d.errors.slotGone };
 
-  const today = todayKey();
-  const targets = await prisma.courseDay.findMany({
-    where: { courseId: source.courseId, id: { not: source.id } },
-    include: { _count: { select: { slots: true } } },
+  const minutes = Math.round((slot.endsAt.getTime() - slot.startsAt.getTime()) / 60000);
+
+  // The wall-clock start time, so every copy lands at the same local hour.
+  const startTime = new Intl.DateTimeFormat('en-GB', {
+    timeZone: APP_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23'
+  }).format(slot.startsAt);
+
+  const laterDays = await prisma.courseDay.findMany({
+    where: {
+      courseId: slot.courseDay.courseId,
+      date: { gt: slot.courseDay.date }
+    },
     orderBy: { date: 'asc' }
   });
-
-  // Times of day, as wall-clock strings, taken from the source day.
-  const times = source.slots.map((slot) => ({
-    time: new Intl.DateTimeFormat('en-GB', {
-      timeZone: process.env.NEXT_PUBLIC_APP_TIMEZONE || 'Asia/Kuwait',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    }).format(slot.startsAt),
-    minutes: Math.round((slot.endsAt.getTime() - slot.startsAt.getTime()) / 60000),
-    capacity: slot.capacity,
-    note: slot.note
-  }));
 
   let created = 0;
   let skipped = 0;
 
-  for (const target of targets) {
-    if (target._count.slots > 0) {
+  for (const day of laterDays) {
+    const dateKey = utcToDateKey(day.date);
+    const startsAt = zonedInputToUtc(dateKey, startTime);
+    const endsAt = new Date(startsAt.getTime() + minutes * 60000);
+
+    if (startsAt.getTime() < Date.now()) {
       skipped++;
       continue;
     }
-    const dateKey = utcToDateKey(target.date);
-    if (dateKey < today) {
+    // findClash spans every course, so this also catches a session this course
+    // already has at that hour.
+    if (await findClash(startsAt, endsAt)) {
       skipped++;
       continue;
     }
 
-    for (const entry of times) {
-      const startsAt = zonedInputToUtc(dateKey, entry.time);
-      const endsAt = new Date(startsAt.getTime() + entry.minutes * 60000);
-      if (startsAt.getTime() < Date.now()) continue;
-      if (await findClash(startsAt, endsAt)) continue;
-
-      await prisma.availabilitySlot.create({
-        data: {
-          courseDayId: target.id,
-          startsAt,
-          endsAt,
-          capacity: entry.capacity,
-          note: entry.note
-        }
-      });
-      created++;
-    }
+    await prisma.availabilitySlot.create({
+      data: {
+        courseDayId: day.id,
+        startsAt,
+        endsAt,
+        capacity: slot.capacity,
+        note: slot.note
+      }
+    });
+    created++;
   }
 
   await recordAudit({
     actorUserId: admin.id,
-    action: 'COPY_TIMES',
+    action: 'COPY_FORWARD',
     entityType: 'Course',
-    entityId: source.courseId,
-    entityName: source.course.title,
-    details: `${created} slots created, ${skipped} days skipped`
+    entityId: slot.courseDay.courseId,
+    entityName: slot.courseDay.course.title,
+    details: `${startTime} -> ${created} later day(s), ${skipped} skipped`
   });
 
-  revalidatePath(`/admin/courses/${source.courseId}/schedule`);
-  revalidatePath(`/courses/${source.courseId}`);
+  revalidatePath(`/admin/courses/${slot.courseDay.courseId}/schedule`);
+  revalidatePath(`/courses/${slot.courseDay.courseId}`);
 
-  return { ok: true, message: fill(d.success.timesCopied, { created, skipped }) };
+  return { ok: true, message: fill(d.success.copiedForward, { created, skipped }) };
 }

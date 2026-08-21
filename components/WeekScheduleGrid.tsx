@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react';
 import {
   addDaySlotAction,
   deleteDaySlotAction,
-  copyDayTimesAction,
+  copySlotForwardAction,
   type ActionState
 } from '@/lib/actions/schedule-actions';
 import { useI18n } from '@/components/I18nProvider';
@@ -55,6 +55,18 @@ export default function WeekScheduleGrid({
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<ActionState>({});
   const [sessionHours, setSessionHours] = useState(defaultHours);
+
+  // The copy control belongs to the rightmost block of each hour row: from
+  // there, "copy forward" has an unambiguous meaning.
+  const lastBookedByHour = new Map<number, number>();
+  days.forEach((day, index) => {
+    for (const slot of day.slots) {
+      const current = lastBookedByHour.get(slot.startHour);
+      if (current === undefined || index > current) {
+        lastBookedByHour.set(slot.startHour, index);
+      }
+    }
+  });
 
   if (days.length === 0) {
     return (
@@ -121,12 +133,21 @@ export default function WeekScheduleGrid({
     });
   }
 
-  function copyTimes(day: GridDay) {
+  function copyForward(slot: GridSlot) {
     const data = new FormData();
-    data.set('id', day.id);
+    data.set('id', slot.id);
     startTransition(async () => {
-      setFeedback(await copyDayTimesAction({}, data));
+      setFeedback(await copySlotForwardAction({}, data));
     });
+  }
+
+  /** Is this day completely free across the given hours? */
+  function isFree(day: GridDay, hour: number, span: number) {
+    for (let h = hour; h < hour + span; h++) {
+      if (slotCovering(day, h)) return false;
+      if (blockedCovering(day, h)) return false;
+    }
+    return true;
   }
 
   return (
@@ -178,17 +199,6 @@ export default function WeekScheduleGrid({
             >
               <span className="tt-weekday">{day.weekday}</span>
               <span className="tt-date">{day.label}</span>
-              {day.slots.length > 0 && (
-                <button
-                  type="button"
-                  className="tt-copy"
-                  onClick={() => copyTimes(day)}
-                  disabled={pending}
-                  title={d.schedule.copyToAll}
-                >
-                  {d.schedule.copyToAll}
-                </button>
-              )}
             </div>
           ))}
 
@@ -233,23 +243,69 @@ export default function WeekScheduleGrid({
 
               if (covering) {
                 const full = covering.booked >= covering.capacity;
+                const isLastForHour =
+                  lastBookedByHour.get(covering.startHour) === colIndex;
+                const canCopy =
+                  isLastForHour &&
+                  days.some(
+                    (later, laterIndex) =>
+                      laterIndex > colIndex &&
+                      isFree(later, covering.startHour, covering.spanHours)
+                  );
+
                 return (
-                  <button
+                  <div
                     key={`${day.id}-${hour}`}
-                    type="button"
                     className={`tt-slot${full ? ' is-full' : ''}`}
                     style={style}
-                    onClick={() => removeSlot(covering)}
-                    disabled={pending}
                   >
-                    <span className="tt-slot-time">
-                      {hourDisplay(covering.startHour)}–
-                      {hourDisplay(covering.startHour + covering.spanHours)}
-                    </span>
-                    {covering.booked > 0 && (
-                      <span className="tt-slot-meta">{d.schedule.booked}</span>
+                    <button
+                      type="button"
+                      className="tt-slot-main"
+                      onClick={() => removeSlot(covering)}
+                      disabled={pending}
+                    >
+                      <span className="tt-slot-time">
+                        {hourDisplay(covering.startHour)}–
+                        {hourDisplay(covering.startHour + covering.spanHours)}
+                      </span>
+                      {covering.booked > 0 && (
+                        <span className="tt-slot-meta">{d.schedule.booked}</span>
+                      )}
+                    </button>
+
+                    {isLastForHour && (
+                      <button
+                        type="button"
+                        className="tt-slot-copy"
+                        onClick={() => copyForward(covering)}
+                        disabled={pending || !canCopy}
+                        title={
+                          canCopy ? d.schedule.copyForward : d.schedule.copyForwardDisabled
+                        }
+                        aria-label={
+                          canCopy ? d.schedule.copyForward : d.schedule.copyForwardDisabled
+                        }
+                      >
+                        <svg
+                          viewBox="0 0 24 16"
+                          width="20"
+                          height="13"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <rect x="1" y="1" width="7.5" height="9.5" rx="1.4" />
+                          <rect x="4.5" y="4.5" width="7.5" height="9.5" rx="1.4" />
+                          <path d="M15 8h6.5" />
+                          <path d="M19 5.5 21.5 8 19 10.5" />
+                        </svg>
+                      </button>
                     )}
-                  </button>
+                  </div>
                 );
               }
 

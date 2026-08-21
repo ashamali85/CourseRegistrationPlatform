@@ -143,7 +143,8 @@ const en = {
     hours: 'hours',
     noTimesSet: 'No times set yet',
     timesSet: 'times set',
-    copyToAll: 'Copy to all days',
+    copyForward: 'Copy this session to the days that follow',
+    copyForwardDisabled: 'No later day is free at this time',
     noDaysTitle: 'No days scheduled yet',
     noDaysBody: 'Pick the days above and save, then set the times for each one.',
     perDayHint: 'Each day has its own times — a Sunday schedule can differ from a Monday one.',
@@ -262,8 +263,7 @@ const en = {
     unknownDay: 'Unknown day.',
     dayGone: 'That day is no longer scheduled.',
     dayHasBookings: 'These days have confirmed bookings and cannot be removed: {days}',
-    slotOverlapCourse: 'That clashes with "{course}" at {when} — you cannot teach two sessions at once.',
-    noTimesToCopy: 'That day has no times to copy.'
+    slotOverlapCourse: 'That clashes with "{course}" at {when} — you cannot teach two sessions at once.'
   },
   success: {
     created: 'Created "{name}".',
@@ -275,7 +275,7 @@ const en = {
     bookingCancelled: 'Cancelled booking {ref}.',
     alreadyCancelled: 'That booking was already cancelled.',
     scheduleSaved: 'Schedule saved — {added} added, {removed} removed, {total} days total.',
-    timesCopied: '{created} times created across other days ({skipped} days skipped).'
+    copiedForward: 'Added to {created} later day(s), {skipped} skipped.'
   },
   validation: {
     enterValidEmail: 'Enter a valid email address.',
@@ -425,7 +425,8 @@ const ar: Dictionary = {
     hours: 'ساعات',
     noTimesSet: 'لم تُحدَّد أوقات بعد',
     timesSet: 'وقت محدد',
-    copyToAll: 'نسخ إلى كل الأيام',
+    copyForward: 'نسخ هذه الجلسة إلى الأيام التالية',
+    copyForwardDisabled: 'لا يوجد يوم لاحق متاح في هذا الوقت',
     noDaysTitle: 'لا توجد أيام مجدولة بعد',
     noDaysBody: 'اختر الأيام أعلاه واحفظها، ثم حدّد أوقات كل يوم.',
     perDayHint: 'لكل يوم أوقاته الخاصة — يمكن أن يختلف جدول الأحد عن جدول الاثنين.',
@@ -544,8 +545,7 @@ const ar: Dictionary = {
     unknownDay: 'يوم غير معروف.',
     dayGone: 'لم يعد هذا اليوم مجدولًا.',
     dayHasBookings: 'هذه الأيام تحتوي على حجوزات مؤكدة ولا يمكن إزالتها: {days}',
-    slotOverlapCourse: 'يتعارض هذا مع دورة "{course}" في {when} — لا يمكنك تقديم جلستين في وقت واحد.',
-    noTimesToCopy: 'لا توجد أوقات في هذا اليوم لنسخها.'
+    slotOverlapCourse: 'يتعارض هذا مع دورة "{course}" في {when} — لا يمكنك تقديم جلستين في وقت واحد.'
   },
   success: {
     created: 'تم إنشاء "{name}".',
@@ -557,7 +557,7 @@ const ar: Dictionary = {
     bookingCancelled: 'تم إلغاء الحجز {ref}.',
     alreadyCancelled: 'هذا الحجز ملغى بالفعل.',
     scheduleSaved: 'تم حفظ الجدول — أُضيف {added}، أُزيل {removed}، الإجمالي {total} يوم.',
-    timesCopied: 'تم إنشاء {created} وقتًا في الأيام الأخرى (تم تخطي {skipped} يوم).'
+    copiedForward: 'تمت الإضافة إلى {created} يوم لاحق، وتم تخطي {skipped}.'
   },
   validation: {
     enterValidEmail: 'أدخل بريدًا إلكترونيًا صحيحًا.',
