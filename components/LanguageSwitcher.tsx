@@ -1,5 +1,6 @@
 import { setLocaleAction } from '@/lib/actions/locale-actions';
 import { getDictionary, type Locale } from '@/lib/i18n';
+import SubmitButton from '@/components/SubmitButton';
 
 /**
  * Server component — a plain form post, so switching language works without
@@ -12,9 +13,9 @@ export default function LanguageSwitcher({ locale }: { locale: Locale }) {
   return (
     <form action={setLocaleAction}>
       <input type="hidden" name="locale" value={next} />
-      <button type="submit" lang={next} title={d.common.language}>
+      <SubmitButton className="" lang={next} title={d.common.language}>
         {d.otherLocaleName}
-      </button>
+      </SubmitButton>
     </form>
   );
 }

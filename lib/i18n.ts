@@ -54,7 +54,8 @@ const en = {
     minutes: 'min',
     language: 'Language',
     confirm: 'Confirm',
-    confirmTitle: 'Please confirm'
+    confirmTitle: 'Please confirm',
+    processing: 'Loading…'
   },
   nav: {
     dashboard: 'Dashboard',
@@ -354,7 +355,8 @@ const ar: Dictionary = {
     minutes: 'دقيقة',
     language: 'اللغة',
     confirm: 'تأكيد',
-    confirmTitle: 'تأكيد الإجراء'
+    confirmTitle: 'تأكيد الإجراء',
+    processing: 'جارٍ التحميل…'
   },
   nav: {
     dashboard: 'لوحة التحكم',

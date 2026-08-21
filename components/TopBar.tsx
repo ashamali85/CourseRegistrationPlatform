@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { logoutAction } from '@/lib/actions/auth-actions';
 import { getT } from '@/lib/locale';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import SubmitButton from '@/components/SubmitButton';
 import type { SessionUser } from '@/lib/auth';
 
 export default async function TopBar({ user }: { user: SessionUser }) {
@@ -33,7 +34,7 @@ export default async function TopBar({ user }: { user: SessionUser }) {
           <Link href="/change-password">{d.nav.password}</Link>
           <LanguageSwitcher locale={locale} />
           <form action={logoutAction}>
-            <button type="submit">{d.nav.signOut}</button>
+            <SubmitButton className="">{d.nav.signOut}</SubmitButton>
           </form>
         </nav>
       </div>

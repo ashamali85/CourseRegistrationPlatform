@@ -4,11 +4,16 @@ import { useActionState } from 'react';
 import { cancelBookingAction, type ActionState } from '@/lib/actions/booking-actions';
 import { useI18n } from '@/components/I18nProvider';
 import { useConfirmSubmit } from '@/components/ConfirmProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import SubmitButton from '@/components/SubmitButton';
 
 export default function CancelBookingButton({ bookingId }: { bookingId: string }) {
   const { d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(cancelBookingAction, {});
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    cancelBookingAction,
+    {}
+  );
+  useBusyWhile(pending);
   const cancelConfirm = useConfirmSubmit({
     message: d.bookings.confirmCancel,
     confirmLabel: d.bookings.cancelBtn,

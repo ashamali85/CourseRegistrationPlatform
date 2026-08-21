@@ -4,12 +4,17 @@ import { useActionState } from 'react';
 import Link from 'next/link';
 import { loginAction, type ActionState } from '@/lib/actions/auth-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
 export default function LoginForm() {
   const { d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(loginAction, {});
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
+    loginAction,
+    {}
+  );
+  useBusyWhile(pending);
 
   return (
     <form action={formAction} className="stack">

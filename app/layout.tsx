@@ -3,6 +3,7 @@ import { getLocale } from '@/lib/locale';
 import { getDictionary, isRtl } from '@/lib/i18n';
 import I18nProvider from '@/components/I18nProvider';
 import ConfirmProvider from '@/components/ConfirmProvider';
+import BusyProvider from '@/components/BusyProvider';
 import './globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,7 +30,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className={rtl ? 'is-rtl' : undefined}>
         <I18nProvider locale={locale}>
-          <ConfirmProvider>{children}</ConfirmProvider>
+          <BusyProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
+          </BusyProvider>
         </I18nProvider>
       </body>
     </html>

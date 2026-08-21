@@ -3,16 +3,18 @@
 import { useActionState } from 'react';
 import { changePasswordAction, type ActionState } from '@/lib/actions/account-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import { PASSWORD_MIN } from '@/lib/validation';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
 export default function ChangePasswordForm() {
   const { d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, pending] = useActionState<ActionState, FormData>(
     changePasswordAction,
     {}
   );
+  useBusyWhile(pending);
 
   return (
     <form action={formAction} className="stack">

@@ -5,6 +5,7 @@ import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-ac
 import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
 import { useConfirm, useConfirmSubmit } from '@/components/ConfirmProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import { todayKey } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
@@ -21,10 +22,11 @@ export default function ScheduleCalendar({
   lockedDates: string[];
 }) {
   const { d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(
+  const [state, formAction, saving] = useActionState<ActionState, FormData>(
     setCourseDaysAction,
     {}
   );
+  useBusyWhile(saving);
 
   const confirm = useConfirm();
   const saveConfirm = useConfirmSubmit(d.schedule.confirmSaveDays);

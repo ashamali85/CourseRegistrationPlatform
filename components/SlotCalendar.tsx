@@ -5,6 +5,7 @@ import { bookSlotAction, type ActionState } from '@/lib/actions/booking-actions'
 import { formatTime, dayKey } from '@/lib/format';
 import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -26,7 +27,11 @@ export default function SlotCalendar({
   slots: CalendarSlot[];
 }) {
   const { locale, d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(bookSlotAction, {});
+  const [state, formAction, booking] = useActionState<ActionState, FormData>(
+    bookSlotAction,
+    {}
+  );
+  useBusyWhile(booking);
 
   // The calendar is rendered LTR and Sunday-first in every locale — a
   // timetable is not a paragraph, and mirroring it moves the first weekday to

@@ -11,6 +11,7 @@ import {
 } from '@/lib/actions/schedule-actions';
 import { useI18n } from '@/components/I18nProvider';
 import { useConfirm } from '@/components/ConfirmProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import {
   WORK_DAY_HOURS,
   WORK_DAY_END_HOUR,
@@ -60,6 +61,7 @@ export default function WeekScheduleGrid({
   const { d } = useI18n();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
+  useBusyWhile(pending);
   const [feedback, setFeedback] = useState<ActionState>({});
   const [sessionHours, setSessionHours] = useState(defaultHours);
 

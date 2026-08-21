@@ -335,6 +335,35 @@ tr:last-child td { border-bottom: none; }
 .slot-card.is-full { opacity: 0.6; }
 .slot-time { font-weight: 800; font-size: 0.98rem; }
 
+/* --------------------------------------------------------- processing overlay */
+.busy-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 40, 79, .32);
+  backdrop-filter: blur(2px);
+  animation: modal-fade .12s ease-out;
+}
+.busy-card {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 20px 28px;
+}
+.busy-spinner {
+  width: 26px; height: 26px; flex: 0 0 auto; border-radius: 50%;
+  border: 3px solid var(--brand-tint); border-top-color: var(--brand);
+  animation: busy-spin .7s linear infinite;
+}
+.busy-label { font-weight: 700; font-size: .95rem; color: var(--ink); }
+
+@keyframes busy-spin { to { transform: rotate(360deg); } }
+
+/* The global reduced-motion rule stops the spin, so give the ring a visible
+   resting state rather than leaving a static, meaningless circle. */
+@media (prefers-reduced-motion: reduce) {
+  .busy-spinner { border-color: var(--brand-tint); border-top-color: var(--brand); }
+}
+
 /* ------------------------------------------------------------------ modal */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 100;

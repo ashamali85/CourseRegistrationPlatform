@@ -10,6 +10,7 @@ import {
 } from '@/lib/actions/admin-actions';
 import { useI18n } from '@/components/I18nProvider';
 import { useConfirmSubmit } from '@/components/ConfirmProvider';
+import { useBusyWhile } from '@/components/BusyProvider';
 import { SESSION_HOURS } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
@@ -105,7 +106,11 @@ function CourseFields({
 
 function NewCourseForm() {
   const { d } = useI18n();
-  const [state, formAction] = useActionState<ActionState, FormData>(createCourseAction, {});
+  const [state, formAction, creating] = useActionState<ActionState, FormData>(
+    createCourseAction,
+    {}
+  );
+  useBusyWhile(creating);
   const [open, setOpen] = useState(false);
   const createConfirm = useConfirmSubmit(d.admin.confirmCreateCourse);
 
@@ -138,11 +143,15 @@ function NewCourseForm() {
 
 function CourseRow({ course }: { course: AdminCourse }) {
   const { d } = useI18n();
-  const [editState, editAction] = useActionState<ActionState, FormData>(updateCourseAction, {});
-  const [deleteState, deleteAction] = useActionState<ActionState, FormData>(
+  const [editState, editAction, saving] = useActionState<ActionState, FormData>(
+    updateCourseAction,
+    {}
+  );
+  const [deleteState, deleteAction, deleting] = useActionState<ActionState, FormData>(
     deleteCourseAction,
     {}
   );
+  useBusyWhile(saving || deleting);
   const [editing, setEditing] = useState(false);
   const saveConfirm = useConfirmSubmit(d.admin.confirmSaveCourse);
   const deleteConfirm = useConfirmSubmit({
