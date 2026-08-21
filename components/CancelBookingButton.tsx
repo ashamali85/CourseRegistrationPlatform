@@ -3,18 +3,23 @@
 import { useActionState } from 'react';
 import { cancelBookingAction, type ActionState } from '@/lib/actions/booking-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { useConfirmSubmit } from '@/components/ConfirmProvider';
 import SubmitButton from '@/components/SubmitButton';
 
 export default function CancelBookingButton({ bookingId }: { bookingId: string }) {
   const { d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(cancelBookingAction, {});
+  const cancelConfirm = useConfirmSubmit({
+    message: d.bookings.confirmCancel,
+    confirmLabel: d.bookings.cancelBtn,
+    tone: 'danger'
+  });
 
   return (
     <form
+      ref={cancelConfirm.formRef}
       action={formAction}
-      onSubmit={(e) => {
-        if (!confirm(d.bookings.confirmCancel)) e.preventDefault();
-      }}
+      onSubmit={cancelConfirm.onSubmit}
     >
       <input type="hidden" name="id" value={bookingId} />
       <SubmitButton className="btn btn-danger btn-sm" pendingLabel={d.bookings.cancelling}>

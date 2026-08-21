@@ -10,6 +10,7 @@ import {
   type ActionState
 } from '@/lib/actions/schedule-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { useConfirm } from '@/components/ConfirmProvider';
 import {
   WORK_DAY_HOURS,
   WORK_DAY_END_HOUR,
@@ -57,6 +58,7 @@ export default function WeekScheduleGrid({
   defaultHours: number;
 }) {
   const { d } = useI18n();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [feedback, setFeedback] = useState<ActionState>({});
   const [sessionHours, setSessionHours] = useState(defaultHours);
@@ -138,8 +140,13 @@ export default function WeekScheduleGrid({
     });
   }
 
-  function removeSlot(slot: GridSlot) {
-    if (!confirm(d.schedule.removeSession)) return;
+  async function removeSlot(slot: GridSlot) {
+    const ok = await confirm({
+      message: d.schedule.removeSession,
+      confirmLabel: d.common.delete,
+      tone: 'danger'
+    });
+    if (!ok) return;
     const data = new FormData();
     data.set('id', slot.id);
     startTransition(async () => {
@@ -147,8 +154,13 @@ export default function WeekScheduleGrid({
     });
   }
 
-  function clearAllTimes() {
-    if (!confirm(d.schedule.confirmClearTimes)) return;
+  async function clearAllTimes() {
+    const ok = await confirm({
+      message: d.schedule.confirmClearTimes,
+      confirmLabel: d.schedule.clearTimes,
+      tone: 'danger'
+    });
+    if (!ok) return;
     const data = new FormData();
     data.set('id', courseId);
     startTransition(async () => {
@@ -201,7 +213,7 @@ export default function WeekScheduleGrid({
       }
     };
 
-    const onUp = () => {
+    const onUp = async () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
@@ -210,7 +222,8 @@ export default function WeekScheduleGrid({
       setResizing(null);
       if (finalSpan === slot.spanHours) return;
 
-      if (!confirm(fill(d.schedule.confirmResize, { hours: finalSpan }))) return;
+      const ok = await confirm(fill(d.schedule.confirmResize, { hours: finalSpan }));
+      if (!ok) return;
 
       const data = new FormData();
       data.set('id', slot.id);
@@ -225,8 +238,8 @@ export default function WeekScheduleGrid({
     window.addEventListener('pointercancel', onUp);
   }
 
-  function copyForward(slot: GridSlot) {
-    if (!confirm(d.schedule.confirmCopyForward)) return;
+  async function copyForward(slot: GridSlot) {
+    if (!(await confirm(d.schedule.confirmCopyForward))) return;
     const data = new FormData();
     data.set('id', slot.id);
     startTransition(async () => {

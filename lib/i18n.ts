@@ -52,7 +52,9 @@ const en = {
     status: 'Status',
     reference: 'Reference',
     minutes: 'min',
-    language: 'Language'
+    language: 'Language',
+    confirm: 'Confirm',
+    confirmTitle: 'Please confirm'
   },
   nav: {
     dashboard: 'Dashboard',
@@ -349,7 +351,9 @@ const ar: Dictionary = {
     status: 'الحالة',
     reference: 'الرقم المرجعي',
     minutes: 'دقيقة',
-    language: 'اللغة'
+    language: 'اللغة',
+    confirm: 'تأكيد',
+    confirmTitle: 'تأكيد الإجراء'
   },
   nav: {
     dashboard: 'لوحة التحكم',

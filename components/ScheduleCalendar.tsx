@@ -4,6 +4,7 @@ import { useActionState, useMemo, useState } from 'react';
 import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-actions';
 import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
+import { useConfirmSubmit } from '@/components/ConfirmProvider';
 import { todayKey } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
@@ -25,6 +26,7 @@ export default function ScheduleCalendar({
     {}
   );
 
+  const saveConfirm = useConfirmSubmit(d.schedule.confirmSaveDays);
   const locked = useMemo(() => new Set(lockedDates), [lockedDates]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialDates));
 
@@ -154,11 +156,10 @@ export default function ScheduleCalendar({
       </div>
 
       <form
+        ref={saveConfirm.formRef}
         action={formAction}
         className="mt-4"
-        onSubmit={(event) => {
-          if (!confirm(d.schedule.confirmSaveDays)) event.preventDefault();
-        }}
+        onSubmit={saveConfirm.onSubmit}
       >
         <FormAlert error={state.error} message={state.message} />
 

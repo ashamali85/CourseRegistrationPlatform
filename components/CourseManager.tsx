@@ -9,6 +9,7 @@ import {
   type ActionState
 } from '@/lib/actions/admin-actions';
 import { useI18n } from '@/components/I18nProvider';
+import { useConfirmSubmit } from '@/components/ConfirmProvider';
 import { SESSION_HOURS } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
@@ -106,6 +107,7 @@ function NewCourseForm() {
   const { d } = useI18n();
   const [state, formAction] = useActionState<ActionState, FormData>(createCourseAction, {});
   const [open, setOpen] = useState(false);
+  const createConfirm = useConfirmSubmit(d.admin.confirmCreateCourse);
 
   if (!open) {
     return (
@@ -123,12 +125,7 @@ function NewCourseForm() {
           {d.common.close}
         </button>
       </div>
-      <form
-        action={formAction}
-        onSubmit={(event) => {
-          if (!confirm(d.admin.confirmCreateCourse)) event.preventDefault();
-        }}
-      >
+      <form ref={createConfirm.formRef} action={formAction} onSubmit={createConfirm.onSubmit}>
         <FormAlert error={state.error} message={state.message} />
         <div className="mt-4">
           <CourseFields errors={state.fieldErrors} />
@@ -147,6 +144,12 @@ function CourseRow({ course }: { course: AdminCourse }) {
     {}
   );
   const [editing, setEditing] = useState(false);
+  const saveConfirm = useConfirmSubmit(d.admin.confirmSaveCourse);
+  const deleteConfirm = useConfirmSubmit({
+    message: d.admin.confirmDeleteCourse,
+    confirmLabel: d.common.delete,
+    tone: 'danger'
+  });
 
   return (
     <div className="card">
@@ -186,10 +189,9 @@ function CourseRow({ course }: { course: AdminCourse }) {
             {editing ? d.common.close : d.common.edit}
           </button>
           <form
+            ref={deleteConfirm.formRef}
             action={deleteAction}
-            onSubmit={(e) => {
-              if (!confirm(d.admin.confirmDeleteCourse)) e.preventDefault();
-            }}
+            onSubmit={deleteConfirm.onSubmit}
           >
             <input type="hidden" name="id" value={course.id} />
             <SubmitButton className="btn btn-danger btn-sm" pendingLabel={d.common.deleting}>
@@ -203,11 +205,10 @@ function CourseRow({ course }: { course: AdminCourse }) {
 
       {editing && (
         <form
+          ref={saveConfirm.formRef}
           action={editAction}
           className="mt-4"
-          onSubmit={(event) => {
-            if (!confirm(d.admin.confirmSaveCourse)) event.preventDefault();
-          }}
+          onSubmit={saveConfirm.onSubmit}
         >
           <hr className="divider" />
           <FormAlert error={editState.error} message={editState.message} />
