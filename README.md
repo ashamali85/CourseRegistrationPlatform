@@ -222,17 +222,21 @@ Scheduling is **course → days → times**:
 
 1. **Course** — title, description, and a session length of 1, 2 or 3 hours
    (`sessionHours`, default 1).
-2. **CourseDay** — a calendar date the course runs on. The admin picks these on
-   a calendar in one of two modes:
-   - **Date range** — click the first day, click the last. A new period
-     *replaces* the current selection, because a consecutive period is one
-     continuous block; merging ranges is what let "consecutive" mode end up
-     holding non-consecutive days.
-   - **Individual days** — click to toggle, accumulating scattered dates.
+2. **CourseDay** — a calendar date the course runs on. Click days on the
+   calendar to toggle them; there is one selection mode, not two.
 
-   Modifier keys are deliberately ignored. Ctrl/Cmd/Shift-clicking a `<button>`
-   is just a plain click, so honouring them would silently mix the two modes.
-   Days with confirmed bookings survive both a range replacement and Clear.
+   **Weekly repeat.** Tick *Repeat these days every week* and the chosen days
+   are copied onto the same weekday each week. With an end date, it stops
+   there; without one, it runs to **31 December of the year the last chosen day
+   falls in** — the last rather than the first, so a selection straddling New
+   Year does not stop after a few days.
+
+   Generated occurrences render dashed and are not clickable: you edit the week
+   you chose, not its copies. Once saved they become ordinary days, so removing
+   a single occurrence is a matter of saving and then unticking it.
+
+   Days with confirmed bookings survive both unticking and Clear.
+
 3. **AvailabilitySlot** — a time on one of those days, placed on a
    timetable grid: hours down the side, days across, sessions as blocks at
    their exact time. Every day has its own times, so Sunday can differ from

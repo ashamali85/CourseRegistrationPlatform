@@ -2,13 +2,13 @@
 
 import { useActionState, useMemo, useState } from 'react';
 import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-actions';
-import { orderedWeekdays } from '@/lib/i18n';
+import { orderedWeekdays, fill } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
-import { dateKeyRange, todayKey } from '@/lib/time';
+import { todayKey, expandWeekly, endOfYearKey } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
-type Mode = 'range' | 'single';
+const MAX_DAYS = 366;
 
 export default function ScheduleCalendar({
   courseId,
@@ -28,22 +28,41 @@ export default function ScheduleCalendar({
   );
 
   const locked = useMemo(() => new Set(lockedDates), [lockedDates]);
-  const [selected, setSelected] = useState<Set<string>>(new Set(initialDates));
-  const [mode, setMode] = useState<Mode>('range');
-  // First half of a range click. Null means the next click starts a range.
-  const [anchor, setAnchor] = useState<string | null>(null);
-  const [hovered, setHovered] = useState<string | null>(null);
+
+  /** The days actually clicked. Repeat occurrences are derived, not stored. */
+  const [chosen, setChosen] = useState<Set<string>>(new Set(initialDates));
+  const [repeat, setRepeat] = useState(false);
+  const [repeatUntil, setRepeatUntil] = useState('');
 
   const today = todayKey();
-  // The calendar is rendered LTR and Sunday-first in every locale — a
-  // timetable is not a paragraph, and mirroring it moves the first weekday to
-  // the right, which reads as a bug rather than as localisation.
+  // The calendar renders LTR and Sunday-first in every locale — a timetable is
+  // not a paragraph, and mirroring it moves the first weekday to the right.
   const weekStart = 0;
   const weekdays = useMemo(() => orderedWeekdays(d, weekStart), [d]);
 
   const start = new Date(`${today}T00:00:00Z`);
   const [viewYear, setViewYear] = useState(start.getUTCFullYear());
   const [viewMonth, setViewMonth] = useState(start.getUTCMonth());
+
+  const chosenList = useMemo(() => [...chosen].sort(), [chosen]);
+
+  /** Chosen days plus every weekly occurrence they generate. */
+  const finalDates = useMemo(() => {
+    if (!repeat || chosenList.length === 0) return chosenList;
+    return expandWeekly(chosenList, repeatUntil || undefined, MAX_DAYS + 1);
+  }, [chosenList, repeat, repeatUntil]);
+
+  const generated = useMemo(() => {
+    const set = new Set(finalDates);
+    for (const key of chosenList) set.delete(key);
+    return set;
+  }, [finalDates, chosenList]);
+
+  const defaultEndYear = chosenList.length
+    ? endOfYearKey(chosenList[chosenList.length - 1]).slice(0, 4)
+    : String(start.getUTCFullYear());
+
+  const overLimit = finalDates.length > MAX_DAYS;
 
   const cells = useMemo(() => {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1));
@@ -65,99 +84,32 @@ export default function ScheduleCalendar({
     setViewMonth(next.getUTCMonth());
   }
 
-  /** The range being previewed between the anchor and the hovered day. */
-  const preview = useMemo(() => {
-    if (mode !== 'range' || !anchor || !hovered) return new Set<string>();
-    return new Set(dateKeyRange(anchor, hovered));
-  }, [mode, anchor, hovered]);
-
-  function handleClick(key: string) {
+  function toggleDay(key: string) {
     if (key < today) return;
-
-    if (mode === 'single') {
-      // Individual toggle — the escape hatch from consecutive-only selection.
-      setSelected((prev) => {
-        const next = new Set(prev);
-        if (next.has(key)) {
-          if (locked.has(key)) return prev;
-          next.delete(key);
-        } else {
-          next.add(key);
-        }
-        return next;
-      });
-      return;
-    }
-
-    // --- range mode ---
-    if (!anchor) {
-      setAnchor(key);
-      return;
-    }
-    if (anchor === key) {
-      // Clicking the start again cancels it rather than selecting one day.
-      setAnchor(null);
-      setHovered(null);
-      return;
-    }
-
-    // REPLACE, do not merge. Unioning each new range into the previous
-    // selection is what allowed "consecutive" mode to end up holding
-    // non-consecutive days. A period is one continuous block; scattered dates
-    // are what individual mode is for.
-    //
-    // Locked days survive regardless — they have confirmed bookings.
-    setSelected(new Set([...lockedDates, ...dateKeyRange(anchor, key)]));
-    setAnchor(null);
-    setHovered(null);
+    setChosen((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        // A day with confirmed bookings cannot be dropped — that would cancel
+        // a student's session without telling anyone.
+        if (locked.has(key)) return prev;
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
   }
 
   function clearAll() {
-    // Locked days survive a clear — their bookings would otherwise vanish.
-    setSelected(new Set([...selected].filter((key) => locked.has(key))));
-    setAnchor(null);
+    setChosen(new Set([...chosen].filter((key) => locked.has(key))));
   }
-
-  const sorted = useMemo(() => [...selected].sort(), [selected]);
 
   return (
     <div className="card">
       <div className="section-title">
         <h3>{d.schedule.pickDays}</h3>
-        <div className="row">
-          <button
-            type="button"
-            className={`btn btn-sm ${mode === 'range' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => {
-              setMode('range');
-              setAnchor(null);
-            }}
-          >
-            {d.schedule.modeRange}
-          </button>
-          <button
-            type="button"
-            className={`btn btn-sm ${mode === 'single' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => {
-              setMode('single');
-              setAnchor(null);
-            }}
-          >
-            {d.schedule.modeSingle}
-          </button>
-        </div>
       </div>
-
-      <p className="small muted">
-        {mode === 'range'
-          ? anchor
-            ? d.schedule.rangeHintSecond
-            : d.schedule.rangeHintFirst
-          : d.schedule.singleHint}
-      </p>
-      {mode === 'range' && !anchor && (
-        <p className="small muted">{d.schedule.rangeReplaceNote}</p>
-      )}
+      <p className="small muted">{d.schedule.singleHint}</p>
 
       <div className="calendar mt-4" dir="ltr">
         <div className="calendar-head">
@@ -182,7 +134,7 @@ export default function ScheduleCalendar({
           </button>
         </div>
 
-        <div className="calendar-grid" onMouseLeave={() => setHovered(null)}>
+        <div className="calendar-grid">
           {weekdays.map((label) => (
             <div key={label} className="calendar-dow">
               {label}
@@ -193,19 +145,17 @@ export default function ScheduleCalendar({
             if (!cell) return <div key={`e-${i}`} className="calendar-day is-empty" />;
 
             const past = cell.key < today;
-            const isSelected = selected.has(cell.key);
+            const isChosen = chosen.has(cell.key);
+            const isGenerated = !isChosen && generated.has(cell.key);
             const isLocked = locked.has(cell.key);
-            const isAnchor = anchor === cell.key;
-            const inPreview = preview.has(cell.key);
 
             const classes = [
               'calendar-day',
               'is-pickable',
               past ? 'is-past' : '',
-              isSelected ? 'is-selected' : '',
+              isChosen ? 'is-selected' : '',
+              isGenerated ? 'is-generated' : '',
               isLocked ? 'is-locked' : '',
-              isAnchor ? 'is-anchor' : '',
-              inPreview && !isSelected ? 'in-preview' : '',
               cell.key === today ? 'is-today' : ''
             ]
               .filter(Boolean)
@@ -216,17 +166,18 @@ export default function ScheduleCalendar({
                 key={cell.key}
                 type="button"
                 className={classes}
-                disabled={past}
-                aria-pressed={isSelected}
-                title={isLocked ? d.schedule.lockedDay : undefined}
-                onMouseEnter={() => setHovered(cell.key)}
-                onFocus={() => setHovered(cell.key)}
-                onClick={(event) => {
-                  // Ctrl/Cmd/Shift are deliberately ignored: the mode buttons
-                  // are the only way to change selection behaviour.
-                  event.preventDefault();
-                  handleClick(cell.key);
-                }}
+                // Generated days are read-only: you edit the week you chose,
+                // not its copies. After saving they become ordinary days.
+                disabled={past || isGenerated}
+                aria-pressed={isChosen}
+                title={
+                  isLocked
+                    ? d.schedule.lockedDay
+                    : isGenerated
+                      ? d.schedule.generatedDay
+                      : undefined
+                }
+                onClick={() => toggleDay(cell.key)}
               >
                 {cell.day}
                 {isLocked && <span className="calendar-lock">•</span>}
@@ -236,20 +187,67 @@ export default function ScheduleCalendar({
         </div>
       </div>
 
+      <div className="repeat-box mt-4">
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={repeat}
+            onChange={(e) => setRepeat(e.target.checked)}
+          />
+          <span>{d.schedule.repeatWeekly}</span>
+        </label>
+
+        {repeat && (
+          <div className="mt-2">
+            <label htmlFor="repeatUntil">{d.schedule.repeatUntil}</label>
+            <input
+              id="repeatUntil"
+              type="date"
+              min={chosenList[chosenList.length - 1] ?? today}
+              value={repeatUntil}
+              onChange={(e) => setRepeatUntil(e.target.value)}
+            />
+            <p className="small muted mt-2">
+              {fill(d.schedule.repeatUntilHint, { year: defaultEndYear })}
+            </p>
+          </div>
+        )}
+      </div>
+
       <form action={formAction} className="mt-4">
         <FormAlert error={state.error} message={state.message} />
+
+        {overLimit && (
+          <div className="alert alert-error mt-2">
+            {fill(d.schedule.tooManyGenerated, {
+              total: finalDates.length,
+              max: MAX_DAYS
+            })}
+          </div>
+        )}
+
         <input type="hidden" name="courseId" value={courseId} />
-        <input type="hidden" name="dates" value={sorted.join(',')} />
+        <input type="hidden" name="dates" value={finalDates.join(',')} />
 
         <div className="row-between wrap mt-4">
           <span className="muted small">
-            {sorted.length} {d.schedule.daysSelected}
+            {chosenList.length} {d.schedule.daysSelected}
+            {generated.size > 0 && (
+              <>
+                {' · '}
+                {fill(d.schedule.plusRepeats, { n: generated.size })}
+              </>
+            )}
           </span>
           <div className="row">
             <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}>
               {d.schedule.clear}
             </button>
-            <SubmitButton className="btn btn-primary btn-sm" pendingLabel={d.common.saving}>
+            <SubmitButton
+              className="btn btn-primary btn-sm"
+              pendingLabel={d.common.saving}
+              disabled={overLimit}
+            >
               {d.schedule.saveDays}
             </SubmitButton>
           </div>
