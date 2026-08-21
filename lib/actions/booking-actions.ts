@@ -8,6 +8,12 @@ import { recordAudit } from '@/lib/audit';
 import { bookSlotSchema, idSchema, fieldErrors } from '@/lib/validation';
 import { getT } from '@/lib/locale';
 import { fill } from '@/lib/i18n';
+import { sendEmailSafely, instructorEmail, appUrl } from '@/lib/email/send';
+import {
+  bookingConfirmedMessage,
+  bookingForInstructorMessage,
+  bookingCancelledMessage
+} from '@/lib/email/templates';
 import { formatDateTime } from '@/lib/format';
 
 export type ActionState = {
@@ -26,6 +32,10 @@ export async function bookSlotAction(
 ): Promise<ActionState> {
   const user = await requireUserAction();
   const { locale, d } = await getT();
+
+  // Checked here, not only in the UI: a server action is reachable directly,
+  // and an unconfirmed address means the confirmation email goes nowhere.
+  if (!user.emailVerified) return { error: d.verify.mustVerifyToBook };
 
   const parsed = bookSlotSchema(d).safeParse({
     slotId: formData.get('slotId'),
@@ -129,6 +139,30 @@ export async function bookSlotAction(
       details: `${booking.course.title} @ ${formatDateTime(booking.slot.startsAt, locale)}`
     });
 
+    const facts = {
+      locale,
+      studentName: user.name,
+      studentEmail: user.email,
+      courseTitle: booking.course.title,
+      when: formatDateTime(booking.slot.startsAt, locale),
+      reference: booking.reference
+    };
+
+    await sendEmailSafely(
+      bookingConfirmedMessage({ ...facts, to: user.email, url: `${appUrl()}/bookings` })
+    );
+
+    const instructor = instructorEmail();
+    if (instructor) {
+      await sendEmailSafely(
+        bookingForInstructorMessage({
+          ...facts,
+          to: instructor,
+          url: `${appUrl()}/admin/bookings`
+        })
+      );
+    }
+
     revalidatePath('/bookings');
     revalidatePath(`/courses/${courseId}`);
     revalidatePath('/admin/bookings');
@@ -162,7 +196,7 @@ export async function cancelBookingAction(
   formData: FormData
 ): Promise<ActionState> {
   const user = await requireUserAction();
-  const { d } = await getT();
+  const { locale, d } = await getT();
 
   const parsed = idSchema(d).safeParse({ id: formData.get('id') });
   if (!parsed.success) return { error: d.errors.unknownBooking };
@@ -198,6 +232,45 @@ export async function cancelBookingAction(
     entityName: booking.reference,
     details: isAdmin && !isOwner ? 'Cancelled by admin' : 'Cancelled by student'
   });
+
+  // The student who holds the booking is not necessarily the person cancelling
+  // it, so their details come from the booking rather than from the session.
+  const student = await prisma.user.findUnique({ where: { id: booking.userId } });
+  const byAdmin = isAdmin && !isOwner;
+
+  const facts = {
+    locale,
+    studentName: student?.name ?? '',
+    studentEmail: student?.email ?? '',
+    courseTitle: booking.course.title,
+    when: formatDateTime(booking.slot.startsAt, locale),
+    reference: booking.reference
+  };
+
+  if (student?.email) {
+    await sendEmailSafely(
+      bookingCancelledMessage({
+        ...facts,
+        to: student.email,
+        url: `${appUrl()}/bookings`,
+        byAdmin,
+        forInstructor: false
+      })
+    );
+  }
+
+  const instructor = instructorEmail();
+  if (instructor) {
+    await sendEmailSafely(
+      bookingCancelledMessage({
+        ...facts,
+        to: instructor,
+        url: `${appUrl()}/admin/bookings`,
+        byAdmin,
+        forInstructor: true
+      })
+    );
+  }
 
   revalidatePath('/bookings');
   revalidatePath('/admin/bookings');

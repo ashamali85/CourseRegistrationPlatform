@@ -23,6 +23,7 @@ export type SessionUser = {
   email: string;
   role: string;
   mustChangePassword: boolean;
+  emailVerified: boolean;
 };
 
 export type GuardOptions = {
@@ -53,13 +54,15 @@ function toSessionUser(user: {
   email: string;
   role: string;
   mustChangePassword: boolean;
+  emailVerified: Date | null;
 }): SessionUser {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
-    mustChangePassword: user.mustChangePassword
+    mustChangePassword: user.mustChangePassword,
+    emailVerified: user.emailVerified !== null
   };
 }
 

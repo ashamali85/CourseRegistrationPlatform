@@ -35,11 +35,36 @@ model User {
   // the JWT `iat` claim has second granularity.
   passwordChangedAt DateTime @default(now())
 
+  // Null until the address is confirmed by clicking the emailed link.
+  // Unverified accounts can sign in and browse but cannot book.
+  emailVerified DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bookings  Booking[]
-  auditLogs AuditLog[]
+  bookings           Booking[]
+  auditLogs          AuditLog[]
+  verificationTokens EmailVerificationToken[]
+}
+
+// ---------------------------------------------------------------------------
+// A single-use link emailed to confirm an address.
+//
+// Only the SHA-256 of the token is stored. The raw value exists in the email
+// and nowhere else, so a leaked database dump cannot be used to verify
+// somebody else's address.
+// ---------------------------------------------------------------------------
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // ---------------------------------------------------------------------------

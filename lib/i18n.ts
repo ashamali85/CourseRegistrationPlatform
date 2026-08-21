@@ -239,6 +239,59 @@ const en = {
     noBookingsYet: 'No bookings yet',
     noBookingsYetBody: 'They will appear here as soon as students start booking.'
   },
+  verify: {
+    bannerTitle: 'Confirm your email address',
+    bannerBody: 'You can browse courses, but booking is unavailable until you confirm the link we sent to',
+    resend: 'Send again',
+    sent: 'A new confirmation link is on its way.',
+    alreadyVerified: 'Your address is already confirmed.',
+    mustVerifyToBook: 'Confirm your email address before booking a session.',
+    badgeOk: 'Confirmed',
+    badgeFailed: 'Not confirmed',
+    successTitle: 'Email confirmed',
+    successBody: 'Thank you. Your account is ready and you can book a session now.',
+    alreadyTitle: 'Already confirmed',
+    alreadyBody: 'This address was confirmed earlier. Nothing more to do.',
+    expiredTitle: 'This link has expired',
+    expiredBody: 'Confirmation links last 24 hours. Sign in and request a new one from the banner.',
+    invalidTitle: 'This link is not valid',
+    invalidBody: 'It may have been used already or copied incompletely. Sign in and request a new one.',
+    continueCta: 'Browse courses',
+    signInCta: 'Sign in'
+  },
+  email: {
+    footer: 'You are receiving this because you have an account on Course Booking.',
+    verify: {
+      subject: 'Confirm your email address',
+      title: 'Confirm your email address',
+      intro: 'Welcome, {name}. Confirm your address to finish setting up your account and start booking sessions.',
+      button: 'Confirm my email',
+      note: 'This link works once and expires in 24 hours. If you did not create this account, you can ignore this email.'
+    },
+    booked: {
+      subject: 'Booking confirmed — {course}',
+      title: 'Your session is booked',
+      intro: 'Thanks, {name}. Your session is confirmed. The details are below.',
+      button: 'View my bookings',
+      note: 'Need to cancel? Open your bookings and cancel there so the time is released for someone else.'
+    },
+    newBooking: {
+      subject: 'New booking — {course}',
+      title: 'A student booked a session',
+      intro: 'A new session has been booked on your schedule.',
+      button: 'View bookings'
+    },
+    cancelled: {
+      subject: 'Booking cancelled — {course}',
+      title: 'Booking cancelled',
+      introStudentByThem: 'Your booking has been cancelled, {name}. The details are below.',
+      introStudentByAdmin: 'Your booking has been cancelled by the instructor, {name}. Apologies for the inconvenience.',
+      introInstructorByStudent: '{name} has cancelled their booking. The time is free again.',
+      introInstructorByYou: 'You cancelled this booking. The student has been notified.',
+      button: 'View bookings',
+      note: 'You are welcome to book another time whenever suits you.'
+    }
+  },
   notFound: {
     title: 'Page not found',
     body: 'That page does not exist or you no longer have access to it.',
@@ -537,6 +590,59 @@ const ar: Dictionary = {
     bookingsSubtitle: 'أحدث 200 حجز.',
     noBookingsYet: 'لا توجد حجوزات بعد',
     noBookingsYetBody: 'ستظهر هنا فور بدء الطلاب بالحجز.'
+  },
+  verify: {
+    bannerTitle: 'أكّد بريدك الإلكتروني',
+    bannerBody: 'يمكنك تصفح الدورات، لكن الحجز غير متاح حتى تؤكد الرابط الذي أرسلناه إلى',
+    resend: 'إعادة الإرسال',
+    sent: 'تم إرسال رابط تأكيد جديد.',
+    alreadyVerified: 'بريدك الإلكتروني مؤكَّد بالفعل.',
+    mustVerifyToBook: 'أكّد بريدك الإلكتروني قبل حجز أي جلسة.',
+    badgeOk: 'تم التأكيد',
+    badgeFailed: 'لم يتم التأكيد',
+    successTitle: 'تم تأكيد البريد الإلكتروني',
+    successBody: 'شكرًا لك. حسابك جاهز ويمكنك حجز جلسة الآن.',
+    alreadyTitle: 'مؤكَّد بالفعل',
+    alreadyBody: 'تم تأكيد هذا البريد سابقًا. لا حاجة لأي إجراء آخر.',
+    expiredTitle: 'انتهت صلاحية الرابط',
+    expiredBody: 'صلاحية روابط التأكيد 24 ساعة. سجّل الدخول واطلب رابطًا جديدًا من الشريط العلوي.',
+    invalidTitle: 'الرابط غير صالح',
+    invalidBody: 'ربما تم استخدامه من قبل أو نُسخ ناقصًا. سجّل الدخول واطلب رابطًا جديدًا.',
+    continueCta: 'تصفح الدورات',
+    signInCta: 'تسجيل الدخول'
+  },
+  email: {
+    footer: 'تصلك هذه الرسالة لأن لديك حسابًا في منصة حجز الدورات.',
+    verify: {
+      subject: 'أكّد بريدك الإلكتروني',
+      title: 'أكّد بريدك الإلكتروني',
+      intro: 'أهلًا بك يا {name}. أكّد بريدك الإلكتروني لإكمال إنشاء حسابك والبدء بحجز الجلسات.',
+      button: 'تأكيد البريد الإلكتروني',
+      note: 'هذا الرابط يعمل مرة واحدة وتنتهي صلاحيته خلال 24 ساعة. إذا لم تنشئ هذا الحساب، يمكنك تجاهل الرسالة.'
+    },
+    booked: {
+      subject: 'تم تأكيد الحجز — {course}',
+      title: 'تم تأكيد حجز جلستك',
+      intro: 'شكرًا لك يا {name}. تم تأكيد جلستك، وفيما يلي التفاصيل.',
+      button: 'عرض حجوزاتي',
+      note: 'إذا رغبت في الإلغاء، افتح صفحة حجوزاتك وألغِ الحجز ليتاح الموعد لغيرك.'
+    },
+    newBooking: {
+      subject: 'حجز جديد — {course}',
+      title: 'قام أحد الطلاب بحجز جلسة',
+      intro: 'تم حجز جلسة جديدة في جدولك.',
+      button: 'عرض الحجوزات'
+    },
+    cancelled: {
+      subject: 'تم إلغاء الحجز — {course}',
+      title: 'تم إلغاء الحجز',
+      introStudentByThem: 'تم إلغاء حجزك يا {name}. وفيما يلي التفاصيل.',
+      introStudentByAdmin: 'تم إلغاء حجزك من قِبل المدرّب يا {name}. نعتذر عن الإزعاج.',
+      introInstructorByStudent: 'قام {name} بإلغاء الحجز، والموعد متاح مرة أخرى.',
+      introInstructorByYou: 'لقد ألغيت هذا الحجز، وتم إشعار الطالب.',
+      button: 'عرض الحجوزات',
+      note: 'يمكنك حجز موعد آخر في أي وقت يناسبك.'
+    }
   },
   notFound: {
     title: 'الصفحة غير موجودة',

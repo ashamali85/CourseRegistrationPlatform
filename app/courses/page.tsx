@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/auth';
 import { getT } from '@/lib/locale';
 import { startOfTodayUtc } from '@/lib/time';
 import TopBar from '@/components/TopBar';
+import VerifyEmailBanner from '@/components/VerifyEmailBanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,8 @@ export default async function CoursesPage() {
       <TopBar user={user} />
       <div className="page">
         <div className="container">
+          {!user.emailVerified && <VerifyEmailBanner email={user.email} />}
+
           <div className="section-title">
             <div>
               <h1>{d.courses.title}</h1>

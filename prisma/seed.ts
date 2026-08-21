@@ -85,6 +85,9 @@ async function main() {
           passwordHash: await bcrypt.hash(password, 12),
           role: 'ADMIN',
           isActive: true,
+          // The instructor's address is the one configured for sending, so it
+          // needs no click-through.
+          emailVerified: new Date(),
           // Always true. Whether the password came from an environment
           // variable or was generated here, it has passed through storage you
           // do not fully control — so it is a one-time credential, not a
@@ -107,6 +110,24 @@ async function main() {
     create: { name: 'booking', value: 0 },
     update: {}
   });
+
+  // One-off backfill when email verification was introduced. Accounts that
+  // existed before the feature would otherwise be stuck unverified with no
+  // email ever sent to them. Guarded by a counter so it runs exactly once and
+  // never touches genuinely unverified sign-ups on later deploys.
+  const backfill = await prisma.counter.findUnique({
+    where: { name: 'email-verified-backfill' }
+  });
+  if (!backfill) {
+    const result = await prisma.user.updateMany({
+      where: { emailVerified: null },
+      data: { emailVerified: new Date() }
+    });
+    await prisma.counter.create({ data: { name: 'email-verified-backfill', value: 1 } });
+    if (result.count > 0) {
+      console.log(`[seed] marked ${result.count} pre-existing user(s) as verified`);
+    }
+  }
 
   const courseCount = await prisma.course.count();
   if (courseCount === 0) {

@@ -15,6 +15,7 @@ import { recordAudit } from '@/lib/audit';
 import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { registerSchema, loginSchema, fieldErrors } from '@/lib/validation';
 import { getT } from '@/lib/locale';
+import { sendVerificationEmail } from '@/lib/email/verification';
 
 export type ActionState = {
   error?: string;
@@ -25,7 +26,7 @@ export async function registerAction(
   _prev: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const { d } = await getT();
+  const { locale, d } = await getT();
 
   const ip = clientIp(await headers());
   const limit = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
@@ -65,6 +66,15 @@ export async function registerAction(
       entityType: 'User',
       entityId: user.id,
       entityName: user.email
+    });
+
+    // Failure to send must not fail the sign-up — the account exists, and the
+    // banner on the next page offers a fresh link.
+    await sendVerificationEmail({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      locale
     });
 
     await createSession({ id: user.id });
