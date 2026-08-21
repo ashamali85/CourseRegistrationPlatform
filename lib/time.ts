@@ -99,50 +99,6 @@ export function todayKey(timeZone: string = APP_TIMEZONE): string {
   }).format(new Date());
 }
 
-/** Shift a date key by whole days. Uses UTC so it cannot drift across a DST edge. */
-export function addDaysToKey(key: string, days: number): string {
-  const value = dateKeyToUtc(key);
-  value.setUTCDate(value.getUTCDate() + days);
-  return utcToDateKey(value);
-}
-
-/** 31 December of the year the given date key falls in. */
-export function endOfYearKey(key: string): string {
-  return `${key.slice(0, 4)}-12-31`;
-}
-
-/**
- * Expand chosen days into a weekly repeat.
- *
- * Each chosen day is repeated on the same weekday every 7 days up to and
- * including `until`. With no `until`, it runs to 31 December of the year the
- * LAST chosen day falls in — picking the last rather than the first matters
- * when a selection straddles New Year.
- *
- * `limit` is a hard stop so a malformed end date cannot spin out.
- */
-export function expandWeekly(
-  baseKeys: string[],
-  until?: string,
-  limit = 400
-): string[] {
-  if (baseKeys.length === 0) return [];
-
-  const latest = baseKeys.reduce((a, b) => (a > b ? a : b));
-  const endKey = until && until.length === 10 ? until : endOfYearKey(latest);
-
-  const out = new Set(baseKeys);
-  for (const start of baseKeys) {
-    let cursor = start;
-    while (out.size < limit) {
-      cursor = addDaysToKey(cursor, 7);
-      if (cursor > endKey) break;
-      out.add(cursor);
-    }
-  }
-  return [...out].sort();
-}
-
 /** Start of "today" in APP_TIMEZONE, as a UTC instant. */
 export function startOfTodayUtc(timeZone: string = APP_TIMEZONE): Date {
   const today = new Intl.DateTimeFormat('en-CA', {

@@ -223,19 +223,12 @@ Scheduling is **course → days → times**:
 1. **Course** — title, description, and a session length of 1, 2 or 3 hours
    (`sessionHours`, default 1).
 2. **CourseDay** — a calendar date the course runs on. Click days on the
-   calendar to toggle them; there is one selection mode, not two.
+   calendar to toggle them, then save. One selection mode, no modes to choose
+   between.
 
-   **Weekly repeat.** Tick *Repeat these days every week* and the chosen days
-   are copied onto the same weekday each week. With an end date, it stops
-   there; without one, it runs to **31 December of the year the last chosen day
-   falls in** — the last rather than the first, so a selection straddling New
-   Year does not stop after a few days.
-
-   Generated occurrences render dashed and are not clickable: you edit the week
-   you chose, not its copies. Once saved they become ordinary days, so removing
-   a single occurrence is a matter of saving and then unticking it.
-
-   Days with confirmed bookings survive both unticking and Clear.
+   Days with confirmed bookings render with a green outline and survive both
+   unticking and Clear — dropping one would cancel a student's session without
+   telling anyone.
 
 3. **AvailabilitySlot** — a time on one of those days, placed on a
    timetable grid: hours down the side, days across, sessions as blocks at
@@ -396,14 +389,17 @@ and direct URLs being swapped.
 
 1. Email confirmations on booking and cancellation (Resend).
 2. Meeting links per booking (Zoom/Meet) — a nullable field on `AvailabilitySlot`.
-3. Recurring weekly patterns ("every Sun and Tue"), so a term-long course does
-   not need its days clicked individually. Copy-to-all-days covers the common
-   case for now.
-   Also: self-serve password reset by email, so students are not dependent on
-   you running a script.
+3. Self-serve password reset by email, so students are not dependent on you
+   running a script.
+4. Recurring weekly patterns, if clicking a term's worth of days individually
+   becomes tedious. A first attempt at this was removed for being confusing;
+   the lesson was that generated days need to be real, editable rows rather
+   than a preview derived on the fly.
 4. A cancellation cutoff (e.g. no cancelling within 24h).
 5. Payments (Stripe), with `Booking.status` gaining `PENDING_PAYMENT`.
-6. Per-user timezones — currently everything renders in `APP_TIMEZONE`.
+6. Group sessions — `AvailabilitySlot.capacity` still exists in the schema but
+   the UI fixes every session at one seat.
+7. Per-user timezones — currently everything renders in `APP_TIMEZONE`.
 7. Arabic course content. The interface is translated, but course titles and
    descriptions are stored as single strings — bilingual courses would need
    `title_ar` / `title_en` columns or a translations table.

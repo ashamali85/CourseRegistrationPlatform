@@ -2,13 +2,11 @@
 
 import { useActionState, useMemo, useState } from 'react';
 import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-actions';
-import { orderedWeekdays, fill } from '@/lib/i18n';
+import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
-import { todayKey, expandWeekly, endOfYearKey } from '@/lib/time';
+import { todayKey } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
-
-const MAX_DAYS = 366;
 
 export default function ScheduleCalendar({
   courseId,
@@ -28,11 +26,7 @@ export default function ScheduleCalendar({
   );
 
   const locked = useMemo(() => new Set(lockedDates), [lockedDates]);
-
-  /** The days actually clicked. Repeat occurrences are derived, not stored. */
-  const [chosen, setChosen] = useState<Set<string>>(new Set(initialDates));
-  const [repeat, setRepeat] = useState(false);
-  const [repeatUntil, setRepeatUntil] = useState('');
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialDates));
 
   const today = todayKey();
   // The calendar renders LTR and Sunday-first in every locale — a timetable is
@@ -44,25 +38,7 @@ export default function ScheduleCalendar({
   const [viewYear, setViewYear] = useState(start.getUTCFullYear());
   const [viewMonth, setViewMonth] = useState(start.getUTCMonth());
 
-  const chosenList = useMemo(() => [...chosen].sort(), [chosen]);
-
-  /** Chosen days plus every weekly occurrence they generate. */
-  const finalDates = useMemo(() => {
-    if (!repeat || chosenList.length === 0) return chosenList;
-    return expandWeekly(chosenList, repeatUntil || undefined, MAX_DAYS + 1);
-  }, [chosenList, repeat, repeatUntil]);
-
-  const generated = useMemo(() => {
-    const set = new Set(finalDates);
-    for (const key of chosenList) set.delete(key);
-    return set;
-  }, [finalDates, chosenList]);
-
-  const defaultEndYear = chosenList.length
-    ? endOfYearKey(chosenList[chosenList.length - 1]).slice(0, 4)
-    : String(start.getUTCFullYear());
-
-  const overLimit = finalDates.length > MAX_DAYS;
+  const sorted = useMemo(() => [...selected].sort(), [selected]);
 
   const cells = useMemo(() => {
     const first = new Date(Date.UTC(viewYear, viewMonth, 1));
@@ -86,7 +62,7 @@ export default function ScheduleCalendar({
 
   function toggleDay(key: string) {
     if (key < today) return;
-    setChosen((prev) => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
         // A day with confirmed bookings cannot be dropped — that would cancel
@@ -101,7 +77,7 @@ export default function ScheduleCalendar({
   }
 
   function clearAll() {
-    setChosen(new Set([...chosen].filter((key) => locked.has(key))));
+    setSelected(new Set([...selected].filter((key) => locked.has(key))));
   }
 
   return (
@@ -145,16 +121,14 @@ export default function ScheduleCalendar({
             if (!cell) return <div key={`e-${i}`} className="calendar-day is-empty" />;
 
             const past = cell.key < today;
-            const isChosen = chosen.has(cell.key);
-            const isGenerated = !isChosen && generated.has(cell.key);
+            const isSelected = selected.has(cell.key);
             const isLocked = locked.has(cell.key);
 
             const classes = [
               'calendar-day',
               'is-pickable',
               past ? 'is-past' : '',
-              isChosen ? 'is-selected' : '',
-              isGenerated ? 'is-generated' : '',
+              isSelected ? 'is-selected' : '',
               isLocked ? 'is-locked' : '',
               cell.key === today ? 'is-today' : ''
             ]
@@ -166,17 +140,9 @@ export default function ScheduleCalendar({
                 key={cell.key}
                 type="button"
                 className={classes}
-                // Generated days are read-only: you edit the week you chose,
-                // not its copies. After saving they become ordinary days.
-                disabled={past || isGenerated}
-                aria-pressed={isChosen}
-                title={
-                  isLocked
-                    ? d.schedule.lockedDay
-                    : isGenerated
-                      ? d.schedule.generatedDay
-                      : undefined
-                }
+                disabled={past}
+                aria-pressed={isSelected}
+                title={isLocked ? d.schedule.lockedDay : undefined}
                 onClick={() => toggleDay(cell.key)}
               >
                 {cell.day}
@@ -187,67 +153,21 @@ export default function ScheduleCalendar({
         </div>
       </div>
 
-      <div className="repeat-box mt-4">
-        <label className="checkbox-row">
-          <input
-            type="checkbox"
-            checked={repeat}
-            onChange={(e) => setRepeat(e.target.checked)}
-          />
-          <span>{d.schedule.repeatWeekly}</span>
-        </label>
-
-        {repeat && (
-          <div className="mt-2">
-            <label htmlFor="repeatUntil">{d.schedule.repeatUntil}</label>
-            <input
-              id="repeatUntil"
-              type="date"
-              min={chosenList[chosenList.length - 1] ?? today}
-              value={repeatUntil}
-              onChange={(e) => setRepeatUntil(e.target.value)}
-            />
-            <p className="small muted mt-2">
-              {fill(d.schedule.repeatUntilHint, { year: defaultEndYear })}
-            </p>
-          </div>
-        )}
-      </div>
-
       <form action={formAction} className="mt-4">
         <FormAlert error={state.error} message={state.message} />
 
-        {overLimit && (
-          <div className="alert alert-error mt-2">
-            {fill(d.schedule.tooManyGenerated, {
-              total: finalDates.length,
-              max: MAX_DAYS
-            })}
-          </div>
-        )}
-
         <input type="hidden" name="courseId" value={courseId} />
-        <input type="hidden" name="dates" value={finalDates.join(',')} />
+        <input type="hidden" name="dates" value={sorted.join(',')} />
 
         <div className="row-between wrap mt-4">
           <span className="muted small">
-            {chosenList.length} {d.schedule.daysSelected}
-            {generated.size > 0 && (
-              <>
-                {' · '}
-                {fill(d.schedule.plusRepeats, { n: generated.size })}
-              </>
-            )}
+            {sorted.length} {d.schedule.daysSelected}
           </span>
           <div className="row">
             <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}>
               {d.schedule.clear}
             </button>
-            <SubmitButton
-              className="btn btn-primary btn-sm"
-              pendingLabel={d.common.saving}
-              disabled={overLimit}
-            >
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel={d.common.saving}>
               {d.schedule.saveDays}
             </SubmitButton>
           </div>
