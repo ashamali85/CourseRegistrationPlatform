@@ -5,7 +5,6 @@ import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-ac
 import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
 import { dateKeyRange, todayKey } from '@/lib/time';
-import { formatDateKeyShort } from '@/lib/format';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -90,16 +89,25 @@ export default function ScheduleCalendar({
       return;
     }
 
+    // --- range mode ---
     if (!anchor) {
       setAnchor(key);
       return;
     }
-    // Second click closes the range and adds every day between the two ends.
-    setSelected((prev) => {
-      const next = new Set(prev);
-      for (const day of dateKeyRange(anchor, key)) next.add(day);
-      return next;
-    });
+    if (anchor === key) {
+      // Clicking the start again cancels it rather than selecting one day.
+      setAnchor(null);
+      setHovered(null);
+      return;
+    }
+
+    // REPLACE, do not merge. Unioning each new range into the previous
+    // selection is what allowed "consecutive" mode to end up holding
+    // non-consecutive days. A period is one continuous block; scattered dates
+    // are what individual mode is for.
+    //
+    // Locked days survive regardless — they have confirmed bookings.
+    setSelected(new Set([...lockedDates, ...dateKeyRange(anchor, key)]));
     setAnchor(null);
     setHovered(null);
   }
@@ -147,6 +155,9 @@ export default function ScheduleCalendar({
             : d.schedule.rangeHintFirst
           : d.schedule.singleHint}
       </p>
+      {mode === 'range' && !anchor && (
+        <p className="small muted">{d.schedule.rangeReplaceNote}</p>
+      )}
 
       <div className="calendar mt-4" dir="ltr">
         <div className="calendar-head">
@@ -210,7 +221,12 @@ export default function ScheduleCalendar({
                 title={isLocked ? d.schedule.lockedDay : undefined}
                 onMouseEnter={() => setHovered(cell.key)}
                 onFocus={() => setHovered(cell.key)}
-                onClick={() => handleClick(cell.key)}
+                onClick={(event) => {
+                  // Ctrl/Cmd/Shift are deliberately ignored: the mode buttons
+                  // are the only way to change selection behaviour.
+                  event.preventDefault();
+                  handleClick(cell.key);
+                }}
               >
                 {cell.day}
                 {isLocked && <span className="calendar-lock">•</span>}
@@ -220,33 +236,24 @@ export default function ScheduleCalendar({
         </div>
       </div>
 
-      <div className="row-between wrap mt-4">
-        <span className="muted small">
-          {sorted.length} {d.schedule.daysSelected}
-        </span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}>
-          {d.schedule.clear}
-        </button>
-      </div>
-
-      {sorted.length > 0 && (
-        <div className="chip-list mt-2">
-          {sorted.slice(0, 30).map((key) => (
-            <span key={key} className={`chip${locked.has(key) ? ' chip-locked' : ''}`}>
-              {formatDateKeyShort(`${key}T00:00:00Z`)}
-            </span>
-          ))}
-          {sorted.length > 30 && <span className="chip">+{sorted.length - 30}</span>}
-        </div>
-      )}
-
       <form action={formAction} className="mt-4">
         <FormAlert error={state.error} message={state.message} />
         <input type="hidden" name="courseId" value={courseId} />
         <input type="hidden" name="dates" value={sorted.join(',')} />
-        <SubmitButton className="btn btn-primary mt-4" pendingLabel={d.common.saving}>
-          {d.schedule.saveDays}
-        </SubmitButton>
+
+        <div className="row-between wrap mt-4">
+          <span className="muted small">
+            {sorted.length} {d.schedule.daysSelected}
+          </span>
+          <div className="row">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={clearAll}>
+              {d.schedule.clear}
+            </button>
+            <SubmitButton className="btn btn-primary btn-sm" pendingLabel={d.common.saving}>
+              {d.schedule.saveDays}
+            </SubmitButton>
+          </div>
+        </div>
       </form>
     </div>
   );

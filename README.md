@@ -223,8 +223,16 @@ Scheduling is **course → days → times**:
 1. **Course** — title, description, and a session length of 1, 2 or 3 hours
    (`sessionHours`, default 1).
 2. **CourseDay** — a calendar date the course runs on. The admin picks these on
-   a calendar, either as a consecutive range (click first day, click last) or by
-   toggling individual days.
+   a calendar in one of two modes:
+   - **Date range** — click the first day, click the last. A new period
+     *replaces* the current selection, because a consecutive period is one
+     continuous block; merging ranges is what let "consecutive" mode end up
+     holding non-consecutive days.
+   - **Individual days** — click to toggle, accumulating scattered dates.
+
+   Modifier keys are deliberately ignored. Ctrl/Cmd/Shift-clicking a `<button>`
+   is just a plain click, so honouring them would silently mix the two modes.
+   Days with confirmed bookings survive both a range replacement and Clear.
 3. **AvailabilitySlot** — a time on one of those days, placed on a
    timetable grid: hours down the side, days across, sessions as blocks at
    their exact time. Every day has its own times, so Sunday can differ from
