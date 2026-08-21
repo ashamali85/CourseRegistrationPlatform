@@ -291,6 +291,21 @@ tr:last-child td { border-bottom: none; }
   .tt-slot-remove { opacity: 1; }
 }
 
+/* Drag target for changing a session's length. Sits above the body so the
+   bottom few pixels resize instead of doing nothing. */
+.tt-resize {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 9px;
+  cursor: ns-resize; display: flex; align-items: center; justify-content: center;
+  touch-action: none;
+}
+.tt-resize-grip {
+  width: 26px; height: 3px; border-radius: 2px;
+  background: rgba(255,255,255,.5); transition: background .12s ease;
+}
+.tt-resize:hover .tt-resize-grip { background: rgba(255,255,255,.95); }
+.tt-slot.is-resizing { outline: 2px solid var(--brand-2); outline-offset: 1px; }
+.tt-slot.is-resizing .tt-resize-grip { background: #fff; }
+
 .tt-slot.is-full { background: linear-gradient(135deg, #b7791f 0%, #d69e2e 100%); }
 /* An hour taken by another course. Drawn rather than left blank so the cell
    cannot be clicked by mistake — the clash was previously invisible until the

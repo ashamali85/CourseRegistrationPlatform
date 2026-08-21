@@ -371,11 +371,15 @@ most cheaply:
 1. `scripts/check-css.mjs` — brace balance and block structure in
    `globals.css`. Webpack reports a malformed stylesheet at line 1 regardless
    of where the fault is; this reports the real line.
-2. `scripts/gen-prisma-stub.mjs` — types the Prisma client from the schema
+2. `scripts/check-classes.mjs` — every class used in a component has a rule in
+   `globals.css`. Deleting a rule that is still referenced is otherwise silent:
+   the build passes, types pass, and the element just renders unstyled. That is
+   how a drag handle became invisible after an edit to a neighbouring rule.
+3. `scripts/gen-prisma-stub.mjs` — types the Prisma client from the schema
    (see below).
-3. `tsc --noEmit`.
+4. `tsc --noEmit`.
 
-The CSS check and the stale-file cleanup also run at the start of
+These checks and the stale-file cleanup also run at the start of
 `npm run build`, so a deploy fails in seconds with a clear message rather than
 minutes later inside a webpack stack trace.
 

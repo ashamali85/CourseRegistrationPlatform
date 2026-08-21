@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState } from 'react';
 import { setCourseDaysAction, type ActionState } from '@/lib/actions/schedule-actions';
 import { orderedWeekdays } from '@/lib/i18n';
 import { useI18n } from '@/components/I18nProvider';
-import { useConfirmSubmit } from '@/components/ConfirmProvider';
+import { useConfirm, useConfirmSubmit } from '@/components/ConfirmProvider';
 import { todayKey } from '@/lib/time';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
@@ -26,6 +26,7 @@ export default function ScheduleCalendar({
     {}
   );
 
+  const confirm = useConfirm();
   const saveConfirm = useConfirmSubmit(d.schedule.confirmSaveDays);
   const locked = useMemo(() => new Set(lockedDates), [lockedDates]);
   const [selected, setSelected] = useState<Set<string>>(new Set(initialDates));
@@ -78,7 +79,15 @@ export default function ScheduleCalendar({
     });
   }
 
-  function clearAll() {
+  async function clearAll() {
+    // A plain button, not a form submit, so it needs its own confirmation —
+    // the form-level guard does not see it.
+    const ok = await confirm({
+      message: d.schedule.confirmClearDays,
+      confirmLabel: d.schedule.clear,
+      tone: 'danger'
+    });
+    if (!ok) return;
     setSelected(new Set([...selected].filter((key) => locked.has(key))));
   }
 

@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/clean-stale.mjs && node scripts/check-css.mjs app/globals.css && prisma generate && node scripts/db-push.mjs && tsx prisma/seed.ts && next build",
+    "build": "node scripts/clean-stale.mjs && node scripts/check-css.mjs app/globals.css && node scripts/check-classes.mjs && prisma generate && node scripts/db-push.mjs && tsx prisma/seed.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -15,8 +15,9 @@
     "postinstall": "prisma generate",
     "admin:reset": "tsx prisma/reset-admin.ts",
     "clean": "node scripts/clean-stale.mjs",
-    "typecheck:offline": "node scripts/check-css.mjs app/globals.css && node scripts/gen-prisma-stub.mjs && tsc --noEmit",
-    "check:css": "node scripts/check-css.mjs app/globals.css"
+    "typecheck:offline": "node scripts/check-css.mjs app/globals.css && node scripts/check-classes.mjs && node scripts/gen-prisma-stub.mjs && tsc --noEmit",
+    "check:css": "node scripts/check-css.mjs app/globals.css",
+    "check:classes": "node scripts/check-classes.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
