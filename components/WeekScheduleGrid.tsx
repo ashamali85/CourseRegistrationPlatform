@@ -139,7 +139,7 @@ export default function WeekScheduleGrid({
   }
 
   function removeSlot(slot: GridSlot) {
-    if (slot.booked > 0 && !confirm(d.schedule.removeSession)) return;
+    if (!confirm(d.schedule.removeSession)) return;
     const data = new FormData();
     data.set('id', slot.id);
     startTransition(async () => {
@@ -210,6 +210,8 @@ export default function WeekScheduleGrid({
       setResizing(null);
       if (finalSpan === slot.spanHours) return;
 
+      if (!confirm(fill(d.schedule.confirmResize, { hours: finalSpan }))) return;
+
       const data = new FormData();
       data.set('id', slot.id);
       data.set('sessionHours', String(finalSpan));
@@ -224,6 +226,7 @@ export default function WeekScheduleGrid({
   }
 
   function copyForward(slot: GridSlot) {
+    if (!confirm(d.schedule.confirmCopyForward)) return;
     const data = new FormData();
     data.set('id', slot.id);
     startTransition(async () => {
@@ -369,12 +372,7 @@ export default function WeekScheduleGrid({
                     }`}
                     style={style}
                   >
-                    <button
-                      type="button"
-                      className="tt-slot-main"
-                      onClick={() => removeSlot(covering)}
-                      disabled={pending || resizing !== null}
-                    >
+                    <div className="tt-slot-body">
                       <span className="tt-slot-time">
                         {hourDisplay(covering.startHour)}–
                         {hourDisplay(covering.startHour + liveSpan)}
@@ -382,39 +380,67 @@ export default function WeekScheduleGrid({
                       {covering.booked > 0 && (
                         <span className="tt-slot-meta">{d.schedule.booked}</span>
                       )}
-                    </button>
+                    </div>
 
-                    {isLastForHour && (
+                    <div className="tt-slot-actions">
+                      {isLastForHour && (
+                        <button
+                          type="button"
+                          className="tt-slot-btn"
+                          onClick={() => copyForward(covering)}
+                          disabled={pending || !canCopy}
+                          title={
+                            canCopy
+                              ? d.schedule.copyForward
+                              : d.schedule.copyForwardDisabled
+                          }
+                          aria-label={
+                            canCopy
+                              ? d.schedule.copyForward
+                              : d.schedule.copyForwardDisabled
+                          }
+                        >
+                          <svg
+                            viewBox="0 0 24 16"
+                            width="19"
+                            height="12"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.7"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect x="1" y="1" width="7.5" height="9.5" rx="1.4" />
+                            <rect x="4.5" y="4.5" width="7.5" height="9.5" rx="1.4" />
+                            <path d="M15 8h6.5" />
+                            <path d="M19 5.5 21.5 8 19 10.5" />
+                          </svg>
+                        </button>
+                      )}
+
                       <button
                         type="button"
-                        className="tt-slot-copy"
-                        onClick={() => copyForward(covering)}
-                        disabled={pending || !canCopy}
-                        title={
-                          canCopy ? d.schedule.copyForward : d.schedule.copyForwardDisabled
-                        }
-                        aria-label={
-                          canCopy ? d.schedule.copyForward : d.schedule.copyForwardDisabled
-                        }
+                        className="tt-slot-btn tt-slot-remove"
+                        onClick={() => removeSlot(covering)}
+                        disabled={pending || resizing !== null}
+                        title={d.schedule.removeSession}
+                        aria-label={d.schedule.removeSession}
                       >
                         <svg
-                          viewBox="0 0 24 16"
-                          width="20"
-                          height="13"
+                          viewBox="0 0 14 14"
+                          width="12"
+                          height="12"
                           fill="none"
                           stroke="currentColor"
-                          strokeWidth="1.6"
+                          strokeWidth="2"
                           strokeLinecap="round"
-                          strokeLinejoin="round"
                           aria-hidden="true"
                         >
-                          <rect x="1" y="1" width="7.5" height="9.5" rx="1.4" />
-                          <rect x="4.5" y="4.5" width="7.5" height="9.5" rx="1.4" />
-                          <path d="M15 8h6.5" />
-                          <path d="M19 5.5 21.5 8 19 10.5" />
+                          <path d="M3.5 3.5l7 7M10.5 3.5l-7 7" />
                         </svg>
                       </button>
-                    )}
+                    </div>
 
                     {canResize && (
                       <div

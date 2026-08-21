@@ -153,7 +153,13 @@ export default function ScheduleCalendar({
         </div>
       </div>
 
-      <form action={formAction} className="mt-4">
+      <form
+        action={formAction}
+        className="mt-4"
+        onSubmit={(event) => {
+          if (!confirm(d.schedule.confirmSaveDays)) event.preventDefault();
+        }}
+      >
         <FormAlert error={state.error} message={state.message} />
 
         <input type="hidden" name="courseId" value={courseId} />

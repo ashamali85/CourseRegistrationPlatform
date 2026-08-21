@@ -123,7 +123,12 @@ function NewCourseForm() {
           {d.common.close}
         </button>
       </div>
-      <form action={formAction}>
+      <form
+        action={formAction}
+        onSubmit={(event) => {
+          if (!confirm(d.admin.confirmCreateCourse)) event.preventDefault();
+        }}
+      >
         <FormAlert error={state.error} message={state.message} />
         <div className="mt-4">
           <CourseFields errors={state.fieldErrors} />
@@ -197,7 +202,13 @@ function CourseRow({ course }: { course: AdminCourse }) {
       {deleteState.error && <div className="alert alert-error mt-4">{deleteState.error}</div>}
 
       {editing && (
-        <form action={editAction} className="mt-4">
+        <form
+          action={editAction}
+          className="mt-4"
+          onSubmit={(event) => {
+            if (!confirm(d.admin.confirmSaveCourse)) event.preventDefault();
+          }}
+        >
           <hr className="divider" />
           <FormAlert error={editState.error} message={editState.message} />
           <div className="mt-4">

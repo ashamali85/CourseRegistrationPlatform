@@ -260,39 +260,37 @@ tr:last-child td { border-bottom: none; }
   background: linear-gradient(135deg, var(--brand) 0%, var(--brand-2) 100%);
   color: #fff;
 }
-.tt-slot-main {
-  width: 100%; height: 100%; border: none; background: none; color: inherit;
-  font-family: inherit; cursor: pointer; display: flex; flex-direction: column;
-  align-items: flex-start; justify-content: center; gap: 2px;
-  /* right padding keeps the label clear of the copy control */
-  padding: 6px 32px 10px 9px; text-align: left;
+/* The block body is no longer clickable — deleting happens through the X, so
+   a stray click on a session can no longer destroy it. Text sits at the bottom
+   so the action tray at the top never overlaps it, even in a 1-hour block. */
+.tt-slot-body {
+  height: 100%; display: flex; flex-direction: column; justify-content: flex-end;
+  gap: 1px; padding: 4px 8px 10px;
 }
-.tt-slot-main:hover { background: rgba(255,255,255,.10); }
 
-.tt-slot-copy {
-  position: absolute; top: 4px; right: 4px;
+.tt-slot-actions {
+  position: absolute; top: 3px; right: 3px; display: flex; gap: 3px;
+}
+.tt-slot-btn {
   display: flex; align-items: center; justify-content: center;
-  width: 26px; height: 22px; padding: 0; border-radius: 6px; cursor: pointer;
+  width: 24px; height: 21px; padding: 0; border-radius: 6px; cursor: pointer;
   border: 1px solid rgba(255,255,255,.35);
   background: rgba(255,255,255,.16); color: #fff;
+  transition: opacity .12s ease, background .12s ease;
 }
-.tt-slot-copy:hover:not(:disabled) { background: rgba(255,255,255,.32); }
-.tt-slot-copy:disabled { opacity: .35; cursor: not-allowed; }
+.tt-slot-btn:hover:not(:disabled) { background: rgba(255,255,255,.34); }
+.tt-slot-btn:disabled { opacity: .3; cursor: not-allowed; }
 
-/* Drag target for changing a session's length. Sits above the main button so
-   the bottom few pixels resize rather than delete. */
-.tt-resize {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 9px;
-  cursor: ns-resize; display: flex; align-items: center; justify-content: center;
-  touch-action: none;
+/* The X appears on hover, as asked. Also on keyboard focus, and always on
+   touch devices, where there is no hover to reveal it. */
+.tt-slot-remove { opacity: 0; }
+.tt-slot:hover .tt-slot-remove,
+.tt-slot:focus-within .tt-slot-remove { opacity: 1; }
+.tt-slot-remove:hover:not(:disabled) { background: var(--danger); border-color: var(--danger); }
+@media (hover: none) {
+  .tt-slot-remove { opacity: 1; }
 }
-.tt-resize-grip {
-  width: 26px; height: 3px; border-radius: 2px;
-  background: rgba(255,255,255,.5); transition: background .12s ease;
-}
-.tt-resize:hover .tt-resize-grip { background: rgba(255,255,255,.95); }
-.tt-slot.is-resizing { outline: 2px solid var(--brand-2); outline-offset: 1px; }
-.tt-slot.is-resizing .tt-resize-grip { background: #fff; }
+
 .tt-slot.is-full { background: linear-gradient(135deg, #b7791f 0%, #d69e2e 100%); }
 /* An hour taken by another course. Drawn rather than left blank so the cell
    cannot be clicked by mistake — the clash was previously invisible until the
