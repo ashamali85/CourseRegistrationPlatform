@@ -42,6 +42,9 @@ export async function uploadCourseImageAction(
     return { error: d.images.tooMany };
   }
 
+  // 'thumbnail' fills the cover slot; anything else appends to the gallery.
+  const asThumbnail = formData.get('role') === 'thumbnail';
+
   const file = formData.get('file');
   if (!(file instanceof File)) return { error: d.images.chooseFile };
 
@@ -75,15 +78,28 @@ export async function uploadCourseImageAction(
       select: { sortOrder: true }
     });
 
-    await prisma.courseImage.create({
-      data: {
-        courseId: course.id,
-        url: blob.url,
-        pathname: blob.pathname,
-        alt: course.title,
-        sortOrder: (last?.sortOrder ?? -1) + 1
-      }
-    });
+    await prisma.$transaction([
+      // A course has one cover. Uploading a new one demotes the old to the
+      // gallery rather than deleting it — the picture is still useful.
+      ...(asThumbnail
+        ? [
+            prisma.courseImage.updateMany({
+              where: { courseId: course.id, isThumbnail: true },
+              data: { isThumbnail: false }
+            })
+          ]
+        : []),
+      prisma.courseImage.create({
+        data: {
+          courseId: course.id,
+          url: blob.url,
+          pathname: blob.pathname,
+          alt: course.title,
+          isThumbnail: asThumbnail,
+          sortOrder: (last?.sortOrder ?? -1) + 1
+        }
+      })
+    ]);
 
     await recordAudit({
       actorUserId: admin.id,
@@ -143,12 +159,7 @@ export async function deleteCourseImageAction(
   return { ok: true, message: d.images.deleted };
 }
 
-/**
- * Promote an image to first position, which makes it the thumbnail.
- *
- * Everything ahead of it shifts down by one rather than being renumbered from
- * scratch, so the relative order of the other pictures is preserved.
- */
+/** Promote a gallery image to cover, demoting whichever held the slot. */
 export async function setCourseThumbnailAction(
   _prev: ActionState,
   formData: FormData
@@ -166,12 +177,12 @@ export async function setCourseThumbnailAction(
 
   await prisma.$transaction([
     prisma.courseImage.updateMany({
-      where: { courseId: image.courseId, sortOrder: { lt: image.sortOrder } },
-      data: { sortOrder: { increment: 1 } }
+      where: { courseId: image.courseId, isThumbnail: true },
+      data: { isThumbnail: false }
     }),
     prisma.courseImage.update({
       where: { id: image.id },
-      data: { sortOrder: 0 }
+      data: { isThumbnail: true }
     })
   ]);
 

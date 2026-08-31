@@ -18,8 +18,8 @@ export default async function CoursesPage() {
     where: { isPublished: true },
     orderBy: { title: 'asc' },
     include: {
-      // Only the leading image is needed here; it is the thumbnail.
-      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
+      // Cover first, then the earliest image as a fallback if none is flagged.
+      images: { orderBy: [{ isThumbnail: 'desc' }, { sortOrder: 'asc' }], take: 1 },
       days: {
         where: { slots: { some: { startsAt: { gte: now } } } },
         select: {

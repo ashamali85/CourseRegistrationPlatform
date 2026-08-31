@@ -16,7 +16,7 @@ export default async function AdminCoursesPage() {
     include: {
       _count: { select: { bookings: { where: { status: 'CONFIRMED' } }, days: true } },
       days: { orderBy: { date: 'asc' }, select: { date: true } },
-      images: { orderBy: { sortOrder: 'asc' } }
+      images: { orderBy: [{ isThumbnail: 'desc' }, { sortOrder: 'asc' }] }
     }
   });
 
@@ -31,7 +31,12 @@ export default async function AdminCoursesPage() {
     dayCount: c._count.days,
     firstDay: c.days[0]?.date.toISOString() ?? null,
     lastDay: c.days[c.days.length - 1]?.date.toISOString() ?? null,
-    images: c.images.map((image) => ({ id: image.id, url: image.url, alt: image.alt }))
+    images: c.images.map((image) => ({
+      id: image.id,
+      url: image.url,
+      alt: image.alt,
+      isThumbnail: image.isThumbnail
+    }))
   }));
 
   return (

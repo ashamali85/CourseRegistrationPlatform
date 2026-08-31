@@ -514,10 +514,41 @@ body.is-rtl .gallery-nav { transform: translateY(-50%) scaleX(-1); }
   background: var(--brand); color: #fff; font-size: .64rem; font-weight: 700;
   padding: 3px 8px; border-radius: 999px;
 }
-.image-tile-actions {
-  display: flex; gap: 6px; justify-content: space-between;
-  align-items: center; padding: 7px; flex-wrap: wrap;
+.image-tile-actions { padding: 7px; }
+.btn-block { width: 100%; }
+
+/* Remove control floats over the picture so the tile stays compact. */
+.image-remove { position: absolute; top: 6px; inset-inline-end: 6px; }
+.image-remove-btn {
+  width: 24px; height: 24px; padding: 0; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit; font-size: .8rem; line-height: 1;
+  border: 1px solid rgba(255,255,255,.4);
+  background: rgba(10,40,79,.5); color: #fff; backdrop-filter: blur(2px);
+  opacity: 0; transition: opacity .14s ease, background .14s ease;
 }
+.image-tile:hover .image-remove-btn,
+.image-tile:focus-within .image-remove-btn { opacity: 1; }
+.image-remove-btn:hover { background: var(--danger); border-color: var(--danger); }
+@media (hover: none) { .image-remove-btn { opacity: 1; } }
+
+/* ------------------------------------------------------------- upload zone */
+/* Replaces the native file input, which cannot be styled and renders its
+   labels in the browser's language rather than the site's. */
+.dropzone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; text-align: center; cursor: pointer; font-family: inherit;
+  aspect-ratio: 4 / 3; width: 100%; padding: 12px;
+  border: 2px dashed var(--field-line); border-radius: var(--radius-sm);
+  background: var(--field-bg); color: var(--ink-soft);
+  transition: border-color .14s ease, background .14s ease, color .14s ease;
+}
+.dropzone:hover, .dropzone.is-dragging {
+  border-color: var(--brand-2); color: var(--brand); background: var(--brand-tint);
+}
+.dropzone.is-dragging { border-style: solid; }
+.dropzone-label { font-size: .85rem; font-weight: 700; color: inherit; }
+.dropzone-hint { font-size: .68rem; line-height: 1.5; opacity: .8; }
 
 /* ------------------------------------------------------------------- misc */
 .empty { text-align: center; padding: 40px 20px; color: var(--ink-soft); }

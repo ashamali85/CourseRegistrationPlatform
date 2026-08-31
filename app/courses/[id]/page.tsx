@@ -21,7 +21,8 @@ export default async function CourseDetailPage({
 
   const course = await prisma.course.findUnique({
     where: { id },
-    include: { images: { orderBy: { sortOrder: 'asc' } } }
+    // The cover leads the slider, then the gallery in upload order.
+    include: { images: { orderBy: [{ isThumbnail: 'desc' }, { sortOrder: 'asc' }] } }
   });
 
   // An unpublished course is a 404 for students even if they know the id.

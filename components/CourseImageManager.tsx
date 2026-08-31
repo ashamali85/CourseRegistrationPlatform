@@ -1,8 +1,7 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState } from 'react';
 import {
-  uploadCourseImageAction,
   deleteCourseImageAction,
   setCourseThumbnailAction,
   type ActionState
@@ -10,13 +9,24 @@ import {
 import { useI18n } from '@/components/I18nProvider';
 import { useConfirmSubmit } from '@/components/ConfirmProvider';
 import { useBusyWhile } from '@/components/BusyProvider';
-import { IMAGE_ACCEPT, MAX_IMAGE_BYTES, MAX_IMAGES_PER_COURSE } from '@/lib/images';
+import { MAX_IMAGES_PER_COURSE } from '@/lib/images';
+import ImageDropzone from '@/components/ImageDropzone';
 import SubmitButton from '@/components/SubmitButton';
-import FormAlert from '@/components/FormAlert';
 
-export type AdminImage = { id: string; url: string; alt: string };
+export type AdminImage = {
+  id: string;
+  url: string;
+  alt: string;
+  isThumbnail: boolean;
+};
 
-function ImageTile({ image, isThumbnail }: { image: AdminImage; isThumbnail: boolean }) {
+function ImageTile({
+  image,
+  showPromote
+}: {
+  image: AdminImage;
+  showPromote: boolean;
+}) {
   const { d } = useI18n();
   const [deleteState, deleteAction, deleting] = useActionState<ActionState, FormData>(
     deleteCourseImageAction,
@@ -35,25 +45,31 @@ function ImageTile({ image, isThumbnail }: { image: AdminImage; isThumbnail: boo
   });
 
   return (
-    <div className={`image-tile${isThumbnail ? ' is-thumbnail' : ''}`}>
+    <div className={`image-tile${image.isThumbnail ? ' is-thumbnail' : ''}`}>
       <img src={image.url} alt={image.alt} loading="lazy" />
 
-      {isThumbnail && <span className="image-badge">{d.images.thumbnail}</span>}
+      <form
+        ref={removeConfirm.formRef}
+        action={deleteAction}
+        onSubmit={removeConfirm.onSubmit}
+        className="image-remove"
+      >
+        <input type="hidden" name="id" value={image.id} />
+        <SubmitButton className="image-remove-btn" aria-label={d.common.delete}>
+          ✕
+        </SubmitButton>
+      </form>
 
-      <div className="image-tile-actions">
-        {!isThumbnail && (
+      {showPromote && (
+        <div className="image-tile-actions">
           <form action={thumbAction}>
             <input type="hidden" name="id" value={image.id} />
-            <SubmitButton className="btn btn-ghost btn-sm">
+            <SubmitButton className="btn btn-ghost btn-sm btn-block">
               {d.images.makeThumbnail}
             </SubmitButton>
           </form>
-        )}
-        <form ref={removeConfirm.formRef} action={deleteAction} onSubmit={removeConfirm.onSubmit}>
-          <input type="hidden" name="id" value={image.id} />
-          <SubmitButton className="btn btn-danger btn-sm">✕</SubmitButton>
-        </form>
-      </div>
+        </div>
+      )}
 
       {(deleteState.error || thumbState.error) && (
         <p className="field-error">{deleteState.error ?? thumbState.error}</p>
@@ -72,67 +88,72 @@ export default function CourseImageManager({
   blobConfigured: boolean;
 }) {
   const { d } = useI18n();
-  const [state, formAction, uploading] = useActionState<ActionState, FormData>(
-    uploadCourseImageAction,
-    {}
-  );
-  useBusyWhile(uploading);
-  const fileRef = useRef<HTMLInputElement>(null);
 
+  // Fall back to the first image if no flag is set, so a course never renders
+  // without a cover just because the flag is missing.
+  const thumbnail = images.find((image) => image.isThumbnail) ?? images[0] ?? null;
+  const gallery = images.filter((image) => image.id !== thumbnail?.id);
   const full = images.length >= MAX_IMAGES_PER_COURSE;
 
   return (
     <div className="mt-4">
       <hr className="divider" />
-      <div className="row-between wrap">
-        <h4 className="images-heading">{d.images.title}</h4>
-        <span className="muted small">
-          {images.length} / {MAX_IMAGES_PER_COURSE}
-        </span>
-      </div>
-      <p className="small muted mt-2">{d.images.hint}</p>
 
-      {!blobConfigured && (
-        <div className="alert alert-warn mt-2">{d.images.notConfigured}</div>
-      )}
+      {!blobConfigured ? (
+        <>
+          <h4 className="images-heading">{d.images.title}</h4>
+          <div className="alert alert-warn mt-2">{d.images.notConfigured}</div>
+        </>
+      ) : (
+        <div className="stack">
+          {/* --- cover --- */}
+          <section>
+            <div className="row-between wrap">
+              <h4 className="images-heading">{d.images.thumbnailTitle}</h4>
+            </div>
+            <p className="small muted mt-2">{d.images.thumbnailHint}</p>
 
-      {images.length > 0 && (
-        <div className="image-grid mt-4">
-          {images.map((image, i) => (
-            <ImageTile key={image.id} image={image} isThumbnail={i === 0} />
-          ))}
+            <div className="image-grid mt-2">
+              {thumbnail && <ImageTile image={thumbnail} showPromote={false} />}
+              {!full && (
+                <ImageDropzone
+                  courseId={courseId}
+                  role="thumbnail"
+                  label={thumbnail ? d.images.replaceThumbnail : d.images.addThumbnail}
+                  hint={d.images.dropHint}
+                />
+              )}
+            </div>
+          </section>
+
+          {/* --- gallery --- */}
+          <section className="mt-4">
+            <div className="row-between wrap">
+              <h4 className="images-heading">{d.images.galleryTitle}</h4>
+              <span className="muted small">
+                {images.length} / {MAX_IMAGES_PER_COURSE}
+              </span>
+            </div>
+            <p className="small muted mt-2">{d.images.galleryHint}</p>
+
+            <div className="image-grid mt-2">
+              {gallery.map((image) => (
+                <ImageTile key={image.id} image={image} showPromote />
+              ))}
+              {!full && (
+                <ImageDropzone
+                  courseId={courseId}
+                  role="gallery"
+                  label={d.images.addImage}
+                  hint={d.images.dropHint}
+                />
+              )}
+            </div>
+
+            {full && <p className="small muted mt-2">{d.images.tooMany}</p>}
+          </section>
         </div>
       )}
-
-      {blobConfigured && !full && (
-        <form action={formAction} className="mt-4">
-          <FormAlert error={state.error} message={state.message} />
-          <input type="hidden" name="courseId" value={courseId} />
-          <div className="row wrap mt-2">
-            <input
-              ref={fileRef}
-              type="file"
-              name="file"
-              accept={IMAGE_ACCEPT}
-              required
-              // Rejected here as well as on the server, so an oversized file is
-              // not uploaded only to be refused.
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file && file.size > MAX_IMAGE_BYTES) {
-                  alert(d.images.tooLarge);
-                  event.target.value = '';
-                }
-              }}
-            />
-            <SubmitButton className="btn btn-ghost btn-sm">
-              {d.images.upload}
-            </SubmitButton>
-          </div>
-        </form>
-      )}
-
-      {full && <p className="small muted mt-2">{d.images.tooMany}</p>}
     </div>
   );
 }
