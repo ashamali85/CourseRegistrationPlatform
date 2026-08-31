@@ -67,9 +67,15 @@ export async function uploadCourseImageAction(
     const blob = await put(key, file, {
       access: 'public',
       contentType: check.type,
-      // The sniffed extension is already unique; a suffix would only make the
-      // stored pathname disagree with what we record.
-      addRandomSuffix: false
+      // The random path already guarantees uniqueness; a suffix would only make
+      // the stored pathname disagree with what we record.
+      addRandomSuffix: false,
+      // Never expected to matter with a random path, but without it a collision
+      // is a hard error rather than a replace.
+      allowOverwrite: true,
+      // Passed explicitly rather than relying on the SDK's implicit env lookup,
+      // so a misnamed variable fails with a clear message instead of a 403.
+      token: process.env.BLOB_READ_WRITE_TOKEN
     });
 
     const last = await prisma.courseImage.findFirst({
@@ -109,8 +115,14 @@ export async function uploadCourseImageAction(
       entityName: course.title
     });
   } catch (error) {
-    console.error('image upload failed', error);
-    return { error: d.images.uploadFailed };
+    console.error('[image] upload failed', error);
+
+    // This page is admin-only, and a bare "try again" gives nothing to act on.
+    // Surfacing the underlying message turns a dead end into a diagnosis.
+    const detail =
+      error instanceof Error ? error.message : String(error ?? 'unknown error');
+
+    return { error: `${d.images.uploadFailed} — ${detail}` };
   }
 
   revalidatePath('/admin/courses');
