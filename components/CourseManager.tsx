@@ -30,6 +30,11 @@ export type AdminCourse = {
   images: AdminImage[];
 };
 
+/**
+ * Shared field set. Wrapped in a width-limited column: a form stretched across
+ * the full page width gives lines far longer than is comfortable to read, and
+ * makes short inputs like a duration select look absurd.
+ */
 function CourseFields({
   course,
   errors
@@ -38,12 +43,14 @@ function CourseFields({
   errors?: Record<string, string>;
 }) {
   const { d } = useI18n();
+  const key = course?.id ?? 'new';
+
   return (
-    <>
+    <div className="form-body">
       <div className="field">
-        <label htmlFor={`title-${course?.id ?? 'new'}`}>{d.admin.courseTitle}</label>
+        <label htmlFor={`title-${key}`}>{d.admin.courseTitle}</label>
         <input
-          id={`title-${course?.id ?? 'new'}`}
+          id={`title-${key}`}
           name="title"
           defaultValue={course?.title ?? ''}
           maxLength={120}
@@ -53,9 +60,9 @@ function CourseFields({
       </div>
 
       <div className="field">
-        <label htmlFor={`summary-${course?.id ?? 'new'}`}>{d.admin.shortSummary}</label>
+        <label htmlFor={`summary-${key}`}>{d.admin.shortSummary}</label>
         <input
-          id={`summary-${course?.id ?? 'new'}`}
+          id={`summary-${key}`}
           name="summary"
           defaultValue={course?.summary ?? ''}
           maxLength={200}
@@ -65,44 +72,48 @@ function CourseFields({
       </div>
 
       <div className="field">
-        <label htmlFor={`description-${course?.id ?? 'new'}`}>{d.admin.fullDescription}</label>
+        <label htmlFor={`description-${key}`}>{d.admin.fullDescription}</label>
         <textarea
-          id={`description-${course?.id ?? 'new'}`}
+          id={`description-${key}`}
           name="description"
           defaultValue={course?.description ?? ''}
           maxLength={4000}
+          rows={5}
         />
         {errors?.description && <p className="field-error">{errors.description}</p>}
       </div>
 
-      <div className="field">
-        <label htmlFor={`hours-${course?.id ?? 'new'}`}>{d.schedule.sessionLength}</label>
-        <select
-          id={`hours-${course?.id ?? 'new'}`}
-          name="sessionHours"
-          defaultValue={course?.sessionHours ?? 1}
-        >
-          {SESSION_HOURS.map((h) => (
-            <option key={h} value={h}>
-              {h} {h === 1 ? d.schedule.hour : d.schedule.hours}
-            </option>
-          ))}
-        </select>
-        {errors?.sessionHours && <p className="field-error">{errors.sessionHours}</p>}
-      </div>
+      <div className="form-row-2">
+        <div className="field">
+          <label htmlFor={`hours-${key}`}>{d.schedule.sessionLength}</label>
+          <select
+            id={`hours-${key}`}
+            name="sessionHours"
+            defaultValue={course?.sessionHours ?? 1}
+          >
+            {SESSION_HOURS.map((hours) => (
+              <option key={hours} value={hours}>
+                {hours} {hours === 1 ? d.schedule.hour : d.schedule.hours}
+              </option>
+            ))}
+          </select>
+          {errors?.sessionHours && <p className="field-error">{errors.sessionHours}</p>}
+        </div>
 
-      <div className="checkbox-row field">
-        <input
-          id={`published-${course?.id ?? 'new'}`}
-          name="isPublished"
-          type="checkbox"
-          defaultChecked={course?.isPublished ?? false}
-        />
-        <label htmlFor={`published-${course?.id ?? 'new'}`}>
-          {d.admin.publishedLabel}
-        </label>
+        <div className="field">
+          <label htmlFor={`published-${key}`}>{d.common.status}</label>
+          <label className="switch-row" htmlFor={`published-${key}`}>
+            <input
+              id={`published-${key}`}
+              name="isPublished"
+              type="checkbox"
+              defaultChecked={course?.isPublished ?? false}
+            />
+            <span>{d.admin.publishedLabel}</span>
+          </label>
+        </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -132,12 +143,20 @@ function NewCourseForm() {
           {d.common.close}
         </button>
       </div>
+
       <form ref={createConfirm.formRef} action={formAction} onSubmit={createConfirm.onSubmit}>
-        <FormAlert error={state.error} message={state.message} />
+        <div className="form-body">
+          <FormAlert error={state.error} message={state.message} />
+        </div>
         <div className="mt-4">
           <CourseFields errors={state.fieldErrors} />
         </div>
-        <SubmitButton pendingLabel={d.common.creating}>{d.admin.createCourse}</SubmitButton>
+        <div className="form-actions">
+          <SubmitButton pendingLabel={d.common.creating}>{d.admin.createCourse}</SubmitButton>
+          <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>
+            {d.common.cancel}
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -160,6 +179,7 @@ function CourseRow({
     {}
   );
   useBusyWhile(saving || deleting);
+
   const [editing, setEditing] = useState(false);
   const saveConfirm = useConfirmSubmit(d.admin.confirmSaveCourse);
   const deleteConfirm = useConfirmSubmit({
@@ -168,10 +188,23 @@ function CourseRow({
     tone: 'danger'
   });
 
+  const thumbnail =
+    course.images.find((image) => image.isThumbnail) ?? course.images[0] ?? null;
+
   return (
     <div className="card">
-      <div className="row-between wrap">
-        <div className="grow">
+      <div className="course-head">
+        {/* Thumbnail in the header gives the row an anchor and confirms at a
+            glance which courses still have no cover image. */}
+        {thumbnail ? (
+          <img className="course-head-thumb" src={thumbnail.url} alt="" loading="lazy" />
+        ) : (
+          <div className="course-head-thumb course-head-thumb-empty">
+            {d.images.noImage}
+          </div>
+        )}
+
+        <div className="course-head-main">
           <div className="row wrap">
             <h3>{course.title}</h3>
             {course.isPublished ? (
@@ -180,28 +213,39 @@ function CourseRow({
               <span className="pill pill-muted">{d.admin.draft}</span>
             )}
           </div>
+
           {course.summary && <p className="muted small mt-2">{course.summary}</p>}
-          <p className="muted small mt-2">
-            {course.sessionHours}{' '}
-            {course.sessionHours === 1 ? d.schedule.hour : d.schedule.hours} ·{' '}
-            {course.dayCount > 0
-              ? `${course.dayCount} ${d.schedule.daysCount}`
-              : d.schedule.noSchedule}{' '}
-            · {course.bookingCount}{' '}
-            {course.bookingCount === 1
-              ? d.admin.confirmedBooking
-              : d.admin.confirmedBookingPlural}
-          </p>
+
+          <div className="meta-chips">
+            <span className="meta-chip">
+              {course.sessionHours}{' '}
+              {course.sessionHours === 1 ? d.schedule.hour : d.schedule.hours}
+            </span>
+            <span className="meta-chip">
+              {course.dayCount > 0
+                ? `${course.dayCount} ${d.schedule.daysCount}`
+                : d.schedule.noSchedule}
+            </span>
+            <span className="meta-chip">
+              {course.bookingCount}{' '}
+              {course.bookingCount === 1
+                ? d.admin.confirmedBooking
+                : d.admin.confirmedBookingPlural}
+            </span>
+            <span className="meta-chip">
+              {course.images.length} {d.images.image}
+            </span>
+          </div>
         </div>
 
-        <div className="row">
+        <div className="course-head-actions">
           <Link href={`/admin/courses/${course.id}/schedule`} className="btn btn-primary btn-sm">
             {d.schedule.manageSchedule}
           </Link>
           <button
             type="button"
             className="btn btn-ghost btn-sm"
-            onClick={() => setEditing((v) => !v)}
+            onClick={() => setEditing((value) => !value)}
           >
             {editing ? d.common.close : d.common.edit}
           </button>
@@ -221,32 +265,27 @@ function CourseRow({
       {deleteState.error && <div className="alert alert-error mt-4">{deleteState.error}</div>}
 
       {editing && (
-        <form
-          ref={saveConfirm.formRef}
-          action={editAction}
-          className="mt-4"
-          onSubmit={saveConfirm.onSubmit}
-        >
+        <>
           <hr className="divider" />
-          <FormAlert error={editState.error} message={editState.message} />
-          <div className="mt-4">
+          <form ref={saveConfirm.formRef} action={editAction} onSubmit={saveConfirm.onSubmit}>
+            <div className="form-body">
+              <FormAlert error={editState.error} message={editState.message} />
+            </div>
             <input type="hidden" name="id" value={course.id} />
             <CourseFields course={course} errors={editState.fieldErrors} />
-          </div>
-          <SubmitButton pendingLabel={d.common.saving}>{d.admin.saveChanges}</SubmitButton>
+            <div className="form-actions">
+              <SubmitButton pendingLabel={d.common.saving}>{d.admin.saveChanges}</SubmitButton>
+            </div>
+          </form>
 
-          {/* Uploads post to their own action, so this sits after the edit
-              form's submit rather than nested inside it — a form inside a
+          {/* Its own forms, so it sits outside the edit form — a form inside a
               form is invalid and the inner one never submits. */}
-        </form>
-      )}
-
-      {editing && (
-        <CourseImageManager
-          courseId={course.id}
-          images={course.images}
-          blobConfigured={blobConfigured}
-        />
+          <CourseImageManager
+            courseId={course.id}
+            images={course.images}
+            blobConfigured={blobConfigured}
+          />
+        </>
       )}
     </div>
   );
@@ -260,6 +299,7 @@ export default function CourseManager({
   blobConfigured: boolean;
 }) {
   const { d } = useI18n();
+
   return (
     <div className="stack">
       <NewCourseForm />
