@@ -128,13 +128,44 @@ h3 { font-size: 1.05rem; }
 
 /* ------------------------------------------------------------------- forms */
 label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; text-align: start; }
+/* Recessed fields: a soft inner shadow at the top edge plus a faint downward
+   gradient reads as "pressed into the surface", where a flat border reads as
+   drawn on top of it. The shadow is tinted with the brand navy rather than
+   neutral grey so it sits in the same colour family as the rest of the page. */
 input, select, textarea {
   width: 100%; font-family: inherit; font-size: 0.95rem;
-  padding: 10px 12px; border: 1px solid var(--line);
-  border-radius: var(--radius-sm); background: var(--surface); color: var(--ink);
+  padding: 11px 13px; color: var(--ink);
+  border: 1px solid var(--field-line);
+  border-radius: var(--radius-sm);
+  background: var(--field-bg);
+  box-shadow:
+    inset 0 2px 4px rgba(10, 46, 102, .07),
+    inset 0 1px 1px rgba(10, 46, 102, .05);
+  transition: box-shadow .14s ease, border-color .14s ease, background .14s ease;
 }
 textarea { min-height: 90px; resize: vertical; }
-input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand-2); box-shadow: 0 0 0 3px var(--brand-tint); }
+
+/* On focus the field lifts slightly: the inset softens, the surface goes
+   white, and the brand ring appears outside it. */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand-2);
+  background: var(--surface);
+  box-shadow:
+    inset 0 1px 2px rgba(10, 46, 102, .05),
+    0 0 0 3px var(--brand-tint);
+}
+input:hover:not(:focus), select:hover:not(:focus), textarea:hover:not(:focus) {
+  border-color: rgba(10, 46, 102, .2);
+}
+input::placeholder, textarea::placeholder { color: #9aa8bd; }
+input:disabled, select:disabled, textarea:disabled {
+  background: var(--surface-2); color: var(--ink-soft);
+  box-shadow: none; cursor: not-allowed;
+}
+
+/* Native select arrow sits oddly on a recessed field; give it room. */
+select { padding-inline-end: 30px; }
 .field { margin-bottom: 14px; }
 /* Honeypot wrapper. Positioned off-screen rather than display:none, because
    some crawlers skip inputs that are outright hidden. */
@@ -146,7 +177,7 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--b
 
 .field-error { color: var(--danger); font-size: 0.8rem; margin-top: 5px; font-weight: 600; text-align: start; }
 .checkbox-row { display: flex; align-items: center; gap: 9px; }
-.checkbox-row input { width: auto; }
+.checkbox-row input { width: auto; box-shadow: none; background: var(--surface); }
 .checkbox-row label { margin-bottom: 0; }
 
 /* ------------------------------------------------------------------ alerts */
