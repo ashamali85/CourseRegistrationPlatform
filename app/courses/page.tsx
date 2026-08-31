@@ -18,6 +18,8 @@ export default async function CoursesPage() {
     where: { isPublished: true },
     orderBy: { title: 'asc' },
     include: {
+      // Only the leading image is needed here; it is the thumbnail.
+      images: { orderBy: { sortOrder: 'asc' }, take: 1 },
       days: {
         where: { slots: { some: { startsAt: { gte: now } } } },
         select: {
@@ -63,6 +65,16 @@ export default async function CoursesPage() {
                 );
                 return (
                   <Link key={course.id} href={`/courses/${course.id}`} className="card">
+                    {course.images[0] ? (
+                      <img
+                        className="course-thumb"
+                        src={course.images[0].url}
+                        alt={course.images[0].alt || course.title}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="course-thumb course-thumb-empty">{d.images.noImage}</div>
+                    )}
                     <div className="row-between wrap">
                       <h3>{course.title}</h3>
                       {open > 0 ? (

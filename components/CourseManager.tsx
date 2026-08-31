@@ -12,6 +12,7 @@ import { useI18n } from '@/components/I18nProvider';
 import { useConfirmSubmit } from '@/components/ConfirmProvider';
 import { useBusyWhile } from '@/components/BusyProvider';
 import { SESSION_HOURS } from '@/lib/time';
+import CourseImageManager, { type AdminImage } from '@/components/CourseImageManager';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
@@ -26,6 +27,7 @@ export type AdminCourse = {
   dayCount: number;
   firstDay: string | null;
   lastDay: string | null;
+  images: AdminImage[];
 };
 
 function CourseFields({
@@ -141,7 +143,13 @@ function NewCourseForm() {
   );
 }
 
-function CourseRow({ course }: { course: AdminCourse }) {
+function CourseRow({
+  course,
+  blobConfigured
+}: {
+  course: AdminCourse;
+  blobConfigured: boolean;
+}) {
   const { d } = useI18n();
   const [editState, editAction, saving] = useActionState<ActionState, FormData>(
     updateCourseAction,
@@ -226,13 +234,31 @@ function CourseRow({ course }: { course: AdminCourse }) {
             <CourseFields course={course} errors={editState.fieldErrors} />
           </div>
           <SubmitButton pendingLabel={d.common.saving}>{d.admin.saveChanges}</SubmitButton>
+
+          {/* Uploads post to their own action, so this sits after the edit
+              form's submit rather than nested inside it — a form inside a
+              form is invalid and the inner one never submits. */}
         </form>
+      )}
+
+      {editing && (
+        <CourseImageManager
+          courseId={course.id}
+          images={course.images}
+          blobConfigured={blobConfigured}
+        />
       )}
     </div>
   );
 }
 
-export default function CourseManager({ courses }: { courses: AdminCourse[] }) {
+export default function CourseManager({
+  courses,
+  blobConfigured
+}: {
+  courses: AdminCourse[];
+  blobConfigured: boolean;
+}) {
   const { d } = useI18n();
   return (
     <div className="stack">
@@ -243,7 +269,9 @@ export default function CourseManager({ courses }: { courses: AdminCourse[] }) {
           <p>{d.admin.noCoursesBody}</p>
         </div>
       ) : (
-        courses.map((course) => <CourseRow key={course.id} course={course} />)
+        courses.map((course) => (
+          <CourseRow key={course.id} course={course} blobConfigured={blobConfigured} />
+        ))
       )}
     </div>
   );

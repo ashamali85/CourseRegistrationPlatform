@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth';
 import { getT } from '@/lib/locale';
+import { isBlobConfigured } from '@/lib/images';
 import TopBar from '@/components/TopBar';
 import CourseManager, { type AdminCourse } from '@/components/CourseManager';
 
@@ -14,7 +15,8 @@ export default async function AdminCoursesPage() {
     orderBy: { createdAt: 'desc' },
     include: {
       _count: { select: { bookings: { where: { status: 'CONFIRMED' } }, days: true } },
-      days: { orderBy: { date: 'asc' }, select: { date: true } }
+      days: { orderBy: { date: 'asc' }, select: { date: true } },
+      images: { orderBy: { sortOrder: 'asc' } }
     }
   });
 
@@ -28,7 +30,8 @@ export default async function AdminCoursesPage() {
     bookingCount: c._count.bookings,
     dayCount: c._count.days,
     firstDay: c.days[0]?.date.toISOString() ?? null,
-    lastDay: c.days[c.days.length - 1]?.date.toISOString() ?? null
+    lastDay: c.days[c.days.length - 1]?.date.toISOString() ?? null,
+    images: c.images.map((image) => ({ id: image.id, url: image.url, alt: image.alt }))
   }));
 
   return (
@@ -42,7 +45,7 @@ export default async function AdminCoursesPage() {
               <p className="muted mt-2">{d.admin.coursesSubtitle}</p>
             </div>
           </div>
-          <CourseManager courses={data} />
+          <CourseManager courses={data} blobConfigured={isBlobConfigured()} />
         </div>
       </div>
     </>

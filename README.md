@@ -172,6 +172,28 @@ push fails, read the log rather than reaching for it.
 
 ---
 
+## Course images
+
+Stored in **Vercel Blob**. Storage → Create → Blob, connect it to the project,
+and `BLOB_READ_WRITE_TOKEN` is added automatically. Without it, uploads are
+disabled and everything else works normally.
+
+The **first image is the thumbnail** — a single ordered list (`sortOrder`)
+rather than a separate thumbnail column, so the two can never disagree about
+which picture leads. "Make thumbnail" moves an image to position 0 and shifts
+the others down, preserving their relative order. The rest appear as a slider
+on the course page, with arrows, dots and keyboard support.
+
+Files are identified by their **leading bytes, not the declared MIME type**.
+`file.type` comes from the browser and is trivially forged, so a script could
+post HTML or SVG labelled `image/png` — and blob storage serves what it is
+given from a domain adjacent to the site. Only real JPEG, PNG and WEBP headers
+are accepted; everything else is refused before anything is stored.
+
+Limits: 4 MB per image (Vercel caps a server action's request body at roughly
+4.5 MB) and 8 images per course. Blob paths are randomised, since predictable
+names would let anyone enumerate every course image.
+
 ## Public sign-up and bot protection
 
 Sign-up mode is **derived, not configured**:

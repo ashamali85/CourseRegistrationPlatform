@@ -87,8 +87,34 @@ model Course {
 
   days     CourseDay[]
   bookings Booking[]
+  images   CourseImage[]
 
   @@index([isPublished])
+}
+
+// ---------------------------------------------------------------------------
+// A picture attached to a course.
+//
+// The image with the lowest sortOrder is the thumbnail — a single ordered list
+// rather than a separate "thumbnail" column, so the two can never disagree
+// about which picture leads.
+//
+// `pathname` is kept alongside the URL because deleting from blob storage
+// needs the storage path, not the public address.
+// ---------------------------------------------------------------------------
+model CourseImage {
+  id        String @id @default(cuid())
+  courseId  String
+  course    Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  url       String
+  pathname  String
+  alt       String @default("")
+  sortOrder Int    @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([courseId, sortOrder])
 }
 
 // ---------------------------------------------------------------------------

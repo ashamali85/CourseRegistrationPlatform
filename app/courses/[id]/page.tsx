@@ -6,6 +6,7 @@ import { startOfTodayUtc } from '@/lib/time';
 import { getT } from '@/lib/locale';
 import TopBar from '@/components/TopBar';
 import SlotCalendar, { type CalendarSlot } from '@/components/SlotCalendar';
+import CourseGallery from '@/components/CourseGallery';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,10 @@ export default async function CourseDetailPage({
   const { d } = await getT();
   const { id } = await params;
 
-  const course = await prisma.course.findUnique({ where: { id } });
+  const course = await prisma.course.findUnique({
+    where: { id },
+    include: { images: { orderBy: { sortOrder: 'asc' } } }
+  });
 
   // An unpublished course is a 404 for students even if they know the id.
   if (!course || (!course.isPublished && user.role !== 'ADMIN')) notFound();
@@ -57,6 +61,18 @@ export default async function CourseDetailPage({
           <p className="small mt-2">
             <Link href="/courses">{d.courses.allCourses}</Link>
           </p>
+
+          {course.images.length > 0 && (
+            <div className="mt-4">
+              <CourseGallery
+                images={course.images.map((image) => ({
+                  id: image.id,
+                  url: image.url,
+                  alt: image.alt || course.title
+                }))}
+              />
+            </div>
+          )}
 
           <div className="card mt-4">
             <div className="row-between wrap">
