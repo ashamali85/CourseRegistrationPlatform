@@ -6,10 +6,12 @@ import { registerAction, type ActionState } from '@/lib/actions/auth-actions';
 import { useI18n } from '@/components/I18nProvider';
 import { useBusyWhile } from '@/components/BusyProvider';
 import { PASSWORD_MIN } from '@/lib/validation';
+import { HONEYPOT_FIELD } from '@/lib/registration';
+import TurnstileWidget from '@/components/TurnstileWidget';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
-export default function RegisterForm() {
+export default function RegisterForm({ siteKey }: { siteKey: string | null }) {
   const { d } = useI18n();
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     registerAction,
@@ -48,6 +50,21 @@ export default function RegisterForm() {
           <p className="field-error">{state.fieldErrors.password}</p>
         )}
       </div>
+
+      {/* Off-screen rather than display:none — some bots skip hidden inputs. */}
+      <div className="visually-hidden" aria-hidden="true">
+        <label htmlFor={HONEYPOT_FIELD}>Leave this field empty</label>
+        <input
+          id={HONEYPOT_FIELD}
+          name={HONEYPOT_FIELD}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          defaultValue=""
+        />
+      </div>
+
+      {siteKey && <TurnstileWidget siteKey={siteKey} />}
 
       <SubmitButton className="btn btn-primary btn-block" pendingLabel={d.auth.creatingAccount}>
         {d.auth.createAccountBtn}

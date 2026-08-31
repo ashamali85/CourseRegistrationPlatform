@@ -240,3 +240,45 @@ export function bookingCancelledMessage(
     ])
   };
 }
+
+// ------------------------------------------------------------------ invite
+
+export function inviteStudentMessage(params: {
+  locale: Locale;
+  to: string;
+  name: string;
+  tempPassword: string;
+  url: string;
+}): EmailMessage {
+  const d = getDictionary(params.locale);
+  const e = d.email.invite;
+
+  return {
+    to: params.to,
+    subject: e.subject,
+    html: layout({
+      locale: params.locale,
+      title: e.title,
+      intro: e.intro.replace('{name}', params.name),
+      rows: [
+        { label: e.emailLabel, value: params.to },
+        { label: e.passwordLabel, value: params.tempPassword }
+      ],
+      action: { label: e.button, url: params.url },
+      note: e.note,
+      footer: d.email.footer
+    }),
+    text: plain([
+      e.title,
+      '',
+      e.intro.replace('{name}', params.name),
+      '',
+      `${e.emailLabel}: ${params.to}`,
+      `${e.passwordLabel}: ${params.tempPassword}`,
+      '',
+      params.url,
+      '',
+      e.note
+    ])
+  };
+}

@@ -8,7 +8,7 @@ import { useBusyWhile } from '@/components/BusyProvider';
 import SubmitButton from '@/components/SubmitButton';
 import FormAlert from '@/components/FormAlert';
 
-export default function LoginForm() {
+export default function LoginForm({ canRegister = true }: { canRegister?: boolean }) {
   const { d } = useI18n();
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     loginAction,
@@ -44,9 +44,11 @@ export default function LoginForm() {
         {d.auth.signIn}
       </SubmitButton>
 
-      <p className="center small muted">
-        {d.auth.noAccount} <Link href="/register">{d.auth.createOne}</Link>
-      </p>
+      {canRegister && (
+        <p className="center small muted">
+          {d.auth.noAccount} <Link href="/register">{d.auth.createOne}</Link>
+        </p>
+      )}
     </form>
   );
 }

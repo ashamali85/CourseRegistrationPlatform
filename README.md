@@ -172,6 +172,38 @@ push fails, read the log rather than reaching for it.
 
 ---
 
+## Public sign-up and bot protection
+
+Sign-up mode is **derived, not configured**:
+
+| Turnstile keys | `REGISTRATION_MODE` | Result |
+|---|---|---|
+| both set | unset | **open**, protected |
+| missing or half-set | unset | **invite only** |
+| any | `invite` | **invite only** |
+| missing | `open` | open and unprotected — logs a warning |
+
+Making "open" depend on the defence being present means the unprotected
+combination cannot happen by forgetting a variable. That is not hypothetical:
+this platform was found by bots within hours of going live and used to send
+verification emails to addresses the bots chose, because a public form existed
+with only an in-memory rate limiter in front of it.
+
+Three layers, in the order they reject:
+
+1. **Honeypot** — a hidden field real users never see. Costs nothing and stops
+   the cheapest crawlers before any network call.
+2. **Turnstile**, verified server-side in `registerAction`. The widget alone
+   protects nothing: a bot posts straight to the action and never loads the
+   page. Every failure mode — missing token, invalid token, replayed token,
+   Cloudflare unreachable — rejects.
+3. **Email normalisation** — Gmail ignores dots and `+tags`, so one mailbox can
+   present as unlimited addresses. `normalizeEmail` collapses them so a second
+   sign-up from the same mailbox is refused.
+
+The rate limiter remains per-lambda in-memory and is *not* a real defence
+against a distributed bot. Turnstile is what does the work.
+
 ## Languages and RTL
 
 The interface ships in **Arabic (default)** and English. The toggle sits in the

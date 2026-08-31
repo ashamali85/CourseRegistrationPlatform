@@ -16,6 +16,12 @@ import { rateLimit, clientIp } from '@/lib/rate-limit';
 import { registerSchema, loginSchema, fieldErrors } from '@/lib/validation';
 import { getT } from '@/lib/locale';
 import { sendVerificationEmail } from '@/lib/email/verification';
+import {
+  isPublicRegistrationOpen,
+  normalizeEmail,
+  HONEYPOT_FIELD
+} from '@/lib/registration';
+import { verifyTurnstile, isTurnstileConfigured } from '@/lib/turnstile';
 
 export type ActionState = {
   error?: string;
@@ -28,12 +34,34 @@ export async function registerAction(
 ): Promise<ActionState> {
   const { locale, d } = await getT();
 
+  // Checked in the action, not only in the page: a server action is reachable
+  // by anyone who can craft a POST, so hiding the form is not a control.
+  if (!isPublicRegistrationOpen()) {
+    return { error: d.auth.registrationClosed };
+  }
+
+  // A hidden field a real user never sees. Simple crawlers fill every input
+  // they find, so this catches the cheapest bots before any network call.
+  const honeypot = formData.get(HONEYPOT_FIELD);
+  if (typeof honeypot === 'string' && honeypot.trim().length > 0) {
+    console.warn('[register] honeypot triggered');
+    return { error: d.errors.registerFailed };
+  }
+
   const ip = clientIp(await headers());
   const limit = rateLimit(`register:${ip}`, 5, 60 * 60 * 1000);
   if (!limit.ok) {
     return {
       error: `${d.errors.tooManySignups} ${limit.retryAfterSeconds}${d.errors.seconds}`
     };
+  }
+
+  // Verified server-side. The widget alone protects nothing — a bot posts
+  // straight to this action and never loads the page.
+  if (isTurnstileConfigured()) {
+    const captcha = await verifyTurnstile(formData.get('cf-turnstile-response'), ip);
+    if (captcha === 'missing') return { error: d.auth.captchaRequired };
+    if (captcha !== 'ok') return { error: d.auth.captchaFailed };
   }
 
   const parsed = registerSchema(d).safeParse({
@@ -46,6 +74,17 @@ export async function registerAction(
   }
 
   const { name, email, password } = parsed.data;
+
+  // One Gmail mailbox can present as unlimited addresses via dots and +tags.
+  // Reject a second sign-up that resolves to a mailbox already registered.
+  const normalized = normalizeEmail(email);
+  const clash = await prisma.user.findFirst({
+    where: { OR: [{ email }, { email: normalized }] },
+    select: { id: true }
+  });
+  if (clash) {
+    return { fieldErrors: { email: d.errors.emailExists } };
+  }
 
   try {
     const user = await prisma.user.create({

@@ -62,6 +62,7 @@ const en = {
     courses: 'Courses',
     availability: 'Availability',
     bookings: 'Bookings',
+    students: 'Students',
     myBookings: 'My bookings',
     password: 'Password',
     signOut: 'Sign out'
@@ -81,7 +82,11 @@ const en = {
     noAccount: 'No account yet?',
     createOne: 'Create one',
     alreadyRegistered: 'Already registered?',
-    minChars: 'At least 8 characters.'
+    minChars: 'At least 8 characters.',
+    registrationClosed: 'Accounts are created by the instructor. Contact them to be added.',
+    registrationClosedTitle: 'Sign-up is by invitation',
+    captchaRequired: 'Complete the verification below to continue.',
+    captchaFailed: 'Verification failed. Reload the page and try again.'
   },
   account: {
     setPassword: 'Set your password',
@@ -239,6 +244,36 @@ const en = {
     noBookingsYet: 'No bookings yet',
     noBookingsYetBody: 'They will appear here as soon as students start booking.'
   },
+  students: {
+    title: 'Students',
+    subtitle: 'Accounts are created here. Public sign-up is closed.',
+    addStudent: 'Add a student',
+    name: 'Full name',
+    email: 'Email',
+    sendInvite: 'Send invitation',
+    invited: 'Invitation sent to {email}.',
+    deleted: 'Removed {email}.',
+    activated: 'Account reactivated.',
+    deactivated: 'Account deactivated. They can no longer sign in.',
+    cannotChangeAdmin: 'The administrator account cannot be changed here.',
+    cannotDeleteReal: 'This account has a confirmed address or existing bookings, so it cannot be removed. Deactivate it instead.',
+    active: 'Active',
+    inactive: 'Inactive',
+    verified: 'Confirmed',
+    unverified: 'Not confirmed',
+    bookings: 'bookings',
+    deactivate: 'Deactivate',
+    activate: 'Reactivate',
+    remove: 'Remove',
+    confirmDeactivate: 'Deactivate this account? They will be signed out and unable to sign in again.',
+    confirmActivate: 'Reactivate this account?',
+    confirmRemove: 'Permanently remove this unconfirmed account?',
+    confirmInvite: 'Create this account and email them an invitation?',
+    emptyTitle: 'No students yet',
+    emptyBody: 'Add one above and they will receive an email with a one-time password.',
+    joined: 'Joined',
+    suspicious: 'Unconfirmed accounts with no bookings are usually automated sign-ups and are safe to remove.'
+  },
   verify: {
     bannerTitle: 'Confirm your email address',
     bannerBody: 'You can browse courses, but booking is unavailable until you confirm the link we sent to',
@@ -274,6 +309,15 @@ const en = {
       intro: 'Thanks, {name}. Your session is confirmed. The details are below.',
       button: 'View my bookings',
       note: 'Need to cancel? Open your bookings and cancel there so the time is released for someone else.'
+    },
+    invite: {
+      subject: 'Your account is ready',
+      title: 'You have been added to Course Booking',
+      intro: 'Hello {name}. The instructor has created an account for you. Sign in with the details below — you will be asked to choose your own password straight away.',
+      emailLabel: 'Email',
+      passwordLabel: 'One-time password',
+      button: 'Sign in',
+      note: 'This password works once. If you did not expect this email, you can ignore it.'
     },
     newBooking: {
       subject: 'New booking — {course}',
@@ -416,6 +460,7 @@ const ar: Dictionary = {
     courses: 'الدورات',
     availability: 'الأوقات المتاحة',
     bookings: 'الحجوزات',
+    students: 'الطلاب',
     myBookings: 'حجوزاتي',
     password: 'كلمة المرور',
     signOut: 'تسجيل الخروج'
@@ -435,7 +480,11 @@ const ar: Dictionary = {
     noAccount: 'ليس لديك حساب؟',
     createOne: 'أنشئ حسابًا',
     alreadyRegistered: 'لديك حساب بالفعل؟',
-    minChars: '8 أحرف على الأقل.'
+    minChars: '8 أحرف على الأقل.',
+    registrationClosed: 'يقوم المدرّب بإنشاء الحسابات. تواصل معه لإضافتك.',
+    registrationClosedTitle: 'التسجيل بالدعوة فقط',
+    captchaRequired: 'أكمل التحقق أدناه للمتابعة.',
+    captchaFailed: 'فشل التحقق. أعد تحميل الصفحة وحاول مرة أخرى.'
   },
   account: {
     setPassword: 'تعيين كلمة المرور',
@@ -591,6 +640,36 @@ const ar: Dictionary = {
     noBookingsYet: 'لا توجد حجوزات بعد',
     noBookingsYetBody: 'ستظهر هنا فور بدء الطلاب بالحجز.'
   },
+  students: {
+    title: 'الطلاب',
+    subtitle: 'تُنشأ الحسابات من هنا. التسجيل العام مغلق.',
+    addStudent: 'إضافة طالب',
+    name: 'الاسم الكامل',
+    email: 'البريد الإلكتروني',
+    sendInvite: 'إرسال الدعوة',
+    invited: 'تم إرسال الدعوة إلى {email}.',
+    deleted: 'تمت إزالة {email}.',
+    activated: 'تم تفعيل الحساب.',
+    deactivated: 'تم تعطيل الحساب. لن يتمكن من تسجيل الدخول.',
+    cannotChangeAdmin: 'لا يمكن تعديل حساب المسؤول من هنا.',
+    cannotDeleteReal: 'هذا الحساب لديه بريد مؤكَّد أو حجوزات قائمة، لذلك لا يمكن إزالته. عطّله بدلًا من ذلك.',
+    active: 'نشط',
+    inactive: 'معطّل',
+    verified: 'مؤكَّد',
+    unverified: 'غير مؤكَّد',
+    bookings: 'حجز',
+    deactivate: 'تعطيل',
+    activate: 'إعادة تفعيل',
+    remove: 'إزالة',
+    confirmDeactivate: 'هل تريد تعطيل هذا الحساب؟ سيتم تسجيل خروجه ولن يتمكن من الدخول مجددًا.',
+    confirmActivate: 'هل تريد إعادة تفعيل هذا الحساب؟',
+    confirmRemove: 'هل تريد إزالة هذا الحساب غير المؤكَّد نهائيًا؟',
+    confirmInvite: 'هل تريد إنشاء هذا الحساب وإرسال دعوة بالبريد الإلكتروني؟',
+    emptyTitle: 'لا يوجد طلاب بعد',
+    emptyBody: 'أضف طالبًا أعلاه وسيصله بريد يحتوي على كلمة مرور مؤقتة.',
+    joined: 'تاريخ الانضمام',
+    suspicious: 'الحسابات غير المؤكَّدة التي ليس لها حجوزات غالبًا تسجيلات آلية، ويمكن إزالتها بأمان.'
+  },
   verify: {
     bannerTitle: 'أكّد بريدك الإلكتروني',
     bannerBody: 'يمكنك تصفح الدورات، لكن الحجز غير متاح حتى تؤكد الرابط الذي أرسلناه إلى',
@@ -626,6 +705,15 @@ const ar: Dictionary = {
       intro: 'شكرًا لك يا {name}. تم تأكيد جلستك، وفيما يلي التفاصيل.',
       button: 'عرض حجوزاتي',
       note: 'إذا رغبت في الإلغاء، افتح صفحة حجوزاتك وألغِ الحجز ليتاح الموعد لغيرك.'
+    },
+    invite: {
+      subject: 'حسابك جاهز',
+      title: 'تمت إضافتك إلى منصة حجز الدورات',
+      intro: 'مرحبًا {name}. أنشأ لك المدرّب حسابًا. سجّل الدخول بالبيانات التالية، وسيُطلب منك اختيار كلمة مرور خاصة بك فورًا.',
+      emailLabel: 'البريد الإلكتروني',
+      passwordLabel: 'كلمة مرور لمرة واحدة',
+      button: 'تسجيل الدخول',
+      note: 'كلمة المرور هذه تعمل مرة واحدة. إذا لم تكن تتوقع هذه الرسالة، يمكنك تجاهلها.'
     },
     newBooking: {
       subject: 'حجز جديد — {course}',

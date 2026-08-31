@@ -24,6 +24,7 @@ export default async function TopBar({ user }: { user: SessionUser }) {
               <Link href="/admin/courses">{d.nav.courses}</Link>
               <Link href="/admin/availability">{d.nav.availability}</Link>
               <Link href="/admin/bookings">{d.nav.bookings}</Link>
+              <Link href="/admin/students">{d.nav.students}</Link>
             </>
           ) : (
             <>
